@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       contentType: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
 
-    return NextResponse.json({ fileKey, fileName: file.name });
+    return NextResponse.json({ fileKey });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json(

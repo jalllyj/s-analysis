@@ -1,8 +1,6 @@
 import { NextRequest } from 'next/server';
 import { S3Storage, SearchClient, LLMClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 import * as XLSX from 'xlsx';
-import { db } from '@/lib/db';
-import { statistics } from '@/db/schema';
 
 interface StockInfo {
   name: string;
@@ -92,37 +90,10 @@ export async function POST(request: NextRequest) {
       };
 
       try {
-        let { fileKey, fileName } = await request.json();
+        const { fileKey } = await request.json();
         const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
 
-        console.log('开始分析请求，fileKey:', fileKey, 'fileName:', fileName);
-
-        // 安全发送数据的辅助函数
-        const safeEnqueue = (data: Uint8Array) => {
-          if (!isControllerClosed) {
-            try {
-              controller.enqueue(data);
-            } catch (e) {
-              console.error('Failed to enqueue data:', e);
-              isControllerClosed = true;
-            }
-          }
-        };
-
-        const safeClose = () => {
-          if (!isControllerClosed) {
-            try {
-              controller.close();
-              isControllerClosed = true;
-            } catch (e) {
-              console.error('Failed to close controller:', e);
-              isControllerClosed = true;
-            }
-          }
-        };
-
         if (!fileKey) {
-          console.error('未提供fileKey');
           safeEnqueue(
             encoder.encode(`data: ${JSON.stringify({ type: 'error', message: '未提供文件密钥' })}\n\n`)
           );
@@ -235,12 +206,6 @@ export async function POST(request: NextRequest) {
 
         console.log(`成功识别 ${stocks.length} 只股票:`, stocks.map(s => `${s.name}(${s.code})`).join(', '));
 
-        // 初始化统计变量
-        const analysisStartTime = Date.now();
-        let totalSearchCount = 0;
-        let totalTokens = 0;
-        fileName = fileName || 'unknown.xlsx';
-
         // 初始化搜索和 LLM 客户端
         const searchConfig = new Config();
         const searchClient = new SearchClient(searchConfig, customHeaders);
@@ -339,8 +304,6 @@ export async function POST(request: NextRequest) {
                   timeRange: search.timeRange,
                   needSummary: true,
                 });
-
-                totalSearchCount += 1; // 统计搜索次数
 
                 if (results.web_items && results.web_items.length > 0) {
                   allSearchResults.push({
@@ -557,11 +520,6 @@ ${searchContext}
               temperature: 0.7,
             });
 
-            // 统计Token消耗（估算：输入token + 输出token）
-            const inputTokens = JSON.stringify(messages).length / 4; // 粗略估算
-            const outputTokens = response.content.length / 4;
-            totalTokens += Math.ceil(inputTokens + outputTokens);
-
             // 解析 JSON 响应
             let analysisData: AnalysisResult;
             try {
@@ -617,37 +575,6 @@ ${searchContext}
         }
 
         console.log('所有股票分析完成');
-
-        // 记录统计数据
-        try {
-          const analysisDuration = Math.round((Date.now() - analysisStartTime) / 1000);
-          console.log('记录统计数据:', {
-            fileName,
-            stockCount: stocks.length,
-            totalSearchCount,
-            totalTokens,
-            analysisDuration,
-          });
-
-          // 异步记录统计数据，不阻塞流式响应
-          fetch('/api/stats/record', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName,
-              stockCount: stocks.length,
-              totalSearchCount,
-              totalTokens,
-              analysisDuration,
-            }),
-          }).catch((err) => {
-            console.error('记录统计数据失败:', err);
-          });
-        } catch (statError) {
-          console.error('统计记录出错:', statError);
-          // 不影响主流程，只记录错误
-        }
-
         // 发送完成信号
         safeEnqueue(encoder.encode('data: [DONE]\n\n'));
       } catch (error) {
