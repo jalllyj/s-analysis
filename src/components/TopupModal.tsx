@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Upload, CheckCircle } from 'lucide-react';
+import { Upload, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 
 interface TopupModalProps {
@@ -104,12 +104,30 @@ export default function TopupModal({
             </CardContent>
           </Card>
 
-          {/* 支付凭证上传（可选） */}
+          {/* 审核提示 */}
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-medium text-blue-900 mb-1">人工审核流程</div>
+                  <div className="text-sm text-blue-800">
+                    支付完成后，系统将提交充值请求，等待管理员人工审核。审核通过后积分将自动到账。
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 支付凭证上传（推荐） */}
           <Card className="border-gray-200 bg-white">
             <CardHeader>
-              <CardTitle className="text-lg text-black">上传支付凭证（可选）</CardTitle>
+              <CardTitle className="text-lg text-black">
+                上传支付凭证
+                <span className="text-red-500 ml-1">*</span>
+              </CardTitle>
               <CardDescription className="text-gray-500">
-                为了更快到账，建议上传支付凭证截图
+                请上传支付凭证截图，以便管理员快速审核
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -163,6 +181,18 @@ export default function TopupModal({
                     />
                   </div>
                 )}
+
+                {!receiptImage && (
+                  <div className="flex items-start gap-2 text-sm text-gray-600 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <div className="font-medium text-yellow-800">未上传凭证可能导致审核延迟</div>
+                      <div className="text-yellow-700 mt-1">
+                        请确保上传清晰的支付截图，包含金额和订单号
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -178,10 +208,16 @@ export default function TopupModal({
             </Button>
             <Button
               onClick={handleConfirm}
-              className="bg-black text-white hover:bg-gray-800 min-w-[120px]"
+              disabled={!receiptImage}
+              className="bg-black text-white hover:bg-gray-800 min-w-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              确认已支付
+              提交审核
             </Button>
+          </div>
+
+          {/* 提示信息 */}
+          <div className="text-center text-xs text-gray-500">
+            提交后，请耐心等待管理员审核，一般 10-30 分钟内完成
           </div>
         </div>
       </DialogContent>

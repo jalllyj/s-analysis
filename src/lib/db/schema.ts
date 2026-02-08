@@ -62,6 +62,27 @@ export const creditTransactions = pgTable('credit_transactions', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// 充值请求表（用于飞书审核）
+export const topupRequests = pgTable('topup_requests', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  email: text('email').notNull(),
+  tierId: text('tier_id').notNull(),
+  tierName: text('tier_name').notNull(),
+  credits: integer('credits').notNull(),
+  price: decimal('price', { precision: 10, scale: 2 }).notNull(),
+  receiptFileKey: text('receipt_file_key'),
+  status: text('status').notNull().default('pending'), // 'pending', 'approved', 'rejected'
+  adminId: integer('admin_id').references(() => users.id),
+  adminRemark: text('admin_remark'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  userIdIdx: index('idx_topup_requests_user_id').on(table.userId),
+  statusIdx: index('idx_topup_requests_status').on(table.status),
+  createdAtIdx: index('idx_topup_requests_created_at').on(table.createdAt),
+}));
+
 // 支付记录表
 export const paymentRecords = pgTable('payment_records', {
   id: serial('id').primaryKey(),
@@ -128,15 +149,32 @@ export const insertPaymentRecordSchema = createCoercedInsertSchema(paymentRecord
   createdAt: true,
 });
 
+export const insertTopupRequestSchema = createCoercedInsertSchema(topupRequests).pick({
+  userId: true,
+  email: true,
+  tierId: true,
+  tierName: true,
+  credits: true,
+  price: true,
+  receiptFileKey: true,
+  status: true,
+  adminId: true,
+  adminRemark: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // 导出类型
 export type User = typeof users.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type UsageRecord = typeof usageRecords.$inferSelect;
 export type PaymentRecord = typeof paymentRecords.$inferSelect;
 export type CreditTransaction = typeof creditTransactions.$inferSelect;
+export type TopupRequest = typeof topupRequests.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type InsertUsageRecord = z.infer<typeof insertUsageRecordSchema>;
 export type InsertCreditTransaction = z.infer<typeof insertCreditTransactionSchema>;
 export type InsertPaymentRecord = z.infer<typeof insertPaymentRecordSchema>;
+export type InsertTopupRequest = z.infer<typeof insertTopupRequestSchema>;

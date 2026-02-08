@@ -101,16 +101,17 @@ export default function PricingPage() {
       });
 
       if (!topupResponse.ok) {
-        throw new Error('充值失败');
+        throw new Error('充值请求提交失败');
       }
 
       const topupData = await topupResponse.json();
 
-      toast.success(`充值成功！已获得 ${topupData.creditsAdded} 积分`);
+      toast.success('充值请求已提交，等待管理员审核', {
+        description: '审核通过后积分将自动到账',
+      });
 
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      // 刷新订阅信息以显示最新状态
+      await fetchSubscription();
     } catch (error) {
       console.error('充值失败:', error);
       toast.error('充值失败，请稍后重试');

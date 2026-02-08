@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { subscriptions, creditTransactions, paymentRecords } from '@/lib/db/schema';
+import { subscriptions, creditTransactions, paymentRecords, topupRequests, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { verifyToken, parseAuthHeader } from '@/lib/auth';
 import { getTierById } from '@/lib/pricing';
+import { createTopupApprovalMessage, sendFeishuWebhookMessage } from '@/lib/feishu-api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,67 +43,78 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 获取用户订阅信息
-    const [subscription] = await db
-      .select()
-      .from(subscriptions)
-      .where(eq(subscriptions.userId, payload.userId))
-      .limit(1);
+    // 获取用户订阅信息和邮箱
+    const [subscription, user] = await Promise.all([
+      db
+        .select()
+        .from(subscriptions)
+        .where(eq(subscriptions.userId, payload.userId))
+        .limit(1),
+      db
+        .select()
+        .from(users)
+        .where(eq(users.id, payload.userId))
+        .limit(1),
+    ]);
 
-    if (!subscription) {
+    if (!subscription[0]) {
       return NextResponse.json(
         { error: '未找到订阅信息' },
         { status: 404 }
       );
     }
 
-    // TODO: 这里应该集成支付网关（如Stripe）
-    // 目前为演示目的，直接完成充值
-    // 实际生产环境需要：
-    // 1. 创建支付订单
-    // 2. 调用支付网关
-    // 3. 等待支付成功回调
-    // 4. 再增加积分
+    if (!user[0]) {
+      return NextResponse.json(
+        { error: '未找到用户信息' },
+        { status: 404 }
+      );
+    }
 
-    // 计算充值后的积分余额
-    const newCreditsBalance = subscription.creditsBalance + tier.credits;
-    const newCreditsGranted = subscription.creditsGranted + tier.credits;
-
-    // 更新订阅信息
-    const [updatedSubscription] = await db
-      .update(subscriptions)
-      .set({
-        creditsBalance: newCreditsBalance,
-        creditsGranted: newCreditsGranted,
+    // 创建充值请求（状态为 pending，等待飞书审核）
+    const [topupRequest] = await db
+      .insert(topupRequests)
+      .values({
+        userId: payload.userId,
+        email: user[0].email,
+        tierId: tier.id,
+        tierName: tier.name,
+        credits: tier.credits,
+        price: tier.price.toString(),
+        receiptFileKey: receiptFileKey || null,
+        status: 'pending',
+        createdAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(subscriptions.id, subscription.id))
       .returning();
 
-    // 记录积分交易
-    await db.insert(creditTransactions).values({
-      userId: payload.userId,
-      subscriptionId: subscription.id,
-      amount: tier.credits,
-      balance: newCreditsBalance,
-      type: 'grant',
-      description: `充值${tier.name}（${tier.credits}积分）`,
-    });
+    // 发送消息到飞书进行审核
+    try {
+      const feishuMessage = createTopupApprovalMessage({
+        requestId: topupRequest.id,
+        email: user[0].email,
+        tierName: tier.name,
+        credits: tier.credits,
+        price: tier.price.toString(),
+        receiptUrl: receiptFileKey,
+        createdAt: topupRequest.createdAt,
+      });
 
-    // 记录支付记录
-    await db.insert(paymentRecords).values({
-      userId: payload.userId,
-      subscriptionId: subscription.id,
-      amount: tier.price.toString(),
-      currency: tier.currency,
-      stripePaymentId: receiptFileKey || null,
-      status: 'completed',
-    });
+      await sendFeishuWebhookMessage(feishuMessage);
+    } catch (feishuError) {
+      console.error('发送飞书消息失败:', feishuError);
+      // 不影响充值请求的创建，只是无法通知管理员
+    }
 
     return NextResponse.json({
-      message: '充值成功',
-      subscription: updatedSubscription,
-      creditsAdded: tier.credits,
+      message: '充值请求已提交，等待管理员审核',
+      topupRequest: {
+        id: topupRequest.id,
+        status: topupRequest.status,
+        credits: topupRequest.credits,
+        price: topupRequest.price,
+        createdAt: topupRequest.createdAt,
+      },
     });
   } catch (error) {
     console.error('充值失败:', error);
