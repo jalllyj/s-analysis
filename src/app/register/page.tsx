@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, UserPlus } from 'lucide-react';
+import { AlertCircle, Loader2, Check } from 'lucide-react';
 import Link from 'next/link';
 
 export default function RegisterPage() {
@@ -13,25 +13,24 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
 
     if (password !== confirmPassword) {
       setError('两次输入的密码不一致');
-      setLoading(false);
       return;
     }
 
     if (password.length < 6) {
       setError('密码长度至少为6位');
-      setLoading(false);
       return;
     }
+
+    setLoading(true);
 
     try {
       const response = await fetch('/api/auth/register', {
@@ -45,101 +44,169 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '注册失败');
+        setError(data.error || '注册失败');
+        return;
       }
 
-      // 存储用户信息
-      localStorage.setItem('user', JSON.stringify(data.user));
-      
-      // 跳转到首页
-      window.location.href = '/';
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '注册失败');
+      // 注册成功，自动登录
+      const loginResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const loginData = await loginResponse.json();
+
+      if (loginResponse.ok) {
+        localStorage.setItem('user', JSON.stringify(loginData.user));
+        localStorage.setItem('token', loginData.token);
+        window.location.href = '/';
+      } else {
+        setError('注册成功，但登录失败，请手动登录');
+      }
+    } catch (error) {
+      setError('注册失败，请稍后重试');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-            <UserPlus className="w-6 h-6 text-white" />
-          </div>
-          <CardTitle className="text-2xl">创建账户</CardTitle>
-          <CardDescription>免费注册，立即开始使用</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">姓名</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="张三"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">邮箱</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">密码</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">确认密码</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-            {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
-                {error}
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-semibold text-black">股票智能分析</h1>
+          <p className="text-gray-500 mt-2">创建您的账户</p>
+        </div>
+
+        {/* Register Card */}
+        <Card className="border-gray-200 bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-black">注册</CardTitle>
+            <CardDescription className="text-gray-500">
+              填写信息创建新账户，每月享有5次免费分析额度
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-black">姓名</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="您的姓名"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="border-gray-300 focus:border-black"
+                  disabled={loading}
+                />
               </div>
-            )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  注册中...
-                </>
-              ) : (
-                '注册'
+
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-black">邮箱</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="border-gray-300 focus:border-black"
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-black">密码</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="至少6位"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="border-gray-300 focus:border-black"
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword" className="text-black">确认密码</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="再次输入密码"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="border-gray-300 focus:border-black"
+                  disabled={loading}
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded text-red-700">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-sm">{error}</span>
+                </div>
               )}
-            </Button>
-          </form>
-          <div className="mt-6 text-center text-sm text-gray-600">
-            已有账户？{' '}
-            <Link href="/login" className="text-blue-600 hover:underline">
-              立即登录
-            </Link>
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-black text-white hover:bg-gray-800"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    注册中...
+                  </>
+                ) : (
+                  '注册'
+                )}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center text-sm text-gray-600">
+              已有账户？{' '}
+              <Link href="/login" className="text-black hover:underline">
+                立即登录
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Features */}
+        <div className="mt-8 space-y-3">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Check className="w-4 h-4 text-black" />
+            <span>每月5次免费分析额度</span>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Check className="w-4 h-4 text-black" />
+            <span>支持Excel批量上传</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Check className="w-4 h-4 text-black" />
+            <span>AI智能分析股票</span>
+          </div>
+        </div>
+
+        {/* Back to Home */}
+        <div className="mt-6 text-center">
+          <Link
+            href="/pricing"
+            className="text-sm text-gray-600 hover:text-black transition-colors"
+          >
+            查看充值套餐 →
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

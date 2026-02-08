@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, CheckCircle } from 'lucide-react';
 import Image from 'next/image';
 
 interface TopupModalProps {
@@ -48,25 +48,25 @@ export default function TopupModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>充值确认</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-black">充值确认</DialogTitle>
+          <DialogDescription className="text-gray-500">
             请使用支付宝扫描下方二维码完成支付
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* 收款码 */}
-          <Card>
+          <Card className="border-gray-200 bg-white">
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row gap-6">
                 {/* 收款码图片 */}
                 <div className="flex-shrink-0">
-                  <div className="relative w-48 h-48 mx-auto md:mx-0">
+                  <div className="relative w-48 h-48 mx-auto md:mx-0 border border-gray-200 rounded-lg overflow-hidden">
                     <Image
                       src="/alipay-qrcode.jpg"
                       alt="支付宝收款码"
                       fill
-                      className="object-contain rounded-lg"
+                      className="object-contain bg-white"
                     />
                   </div>
                 </div>
@@ -75,33 +75,29 @@ export default function TopupModal({
                 <div className="flex-1 space-y-4">
                   <div>
                     <div className="text-sm text-gray-500 mb-1">充值档位</div>
-                    <div className="text-2xl font-bold">{tierName}</div>
+                    <div className="text-xl font-medium text-black">{tierName}</div>
                   </div>
 
                   <div>
                     <div className="text-sm text-gray-500 mb-1">充值金额</div>
-                    <div className="text-3xl font-bold text-blue-600">
+                    <div className="text-3xl font-bold text-black">
                       ¥{price.toFixed(2)}
                     </div>
                   </div>
 
                   <div>
                     <div className="text-sm text-gray-500 mb-1">获得积分</div>
-                    <div className="text-xl font-semibold">
-                      {credits} 积分（可分析 {credits} 只股票）
+                    <div className="text-lg font-medium text-black">
+                      {credits} 积分
                     </div>
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <div className="flex items-start gap-2 text-sm text-blue-800">
-                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                      <ul className="space-y-1">
-                        <li>• 积分充值后永久有效</li>
-                        <li>• 积分可以累积使用</li>
-                        <li>• 优先使用每月免费额度</li>
-                        <li>• 免费额度用完后自动扣除积分</li>
-                      </ul>
-                    </div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
+                    <ul className="space-y-1 text-gray-700">
+                      <li>• 积分充值后永久有效</li>
+                      <li>• 积分可以累积使用</li>
+                      <li>• 优先使用每月免费额度</li>
+                    </ul>
                   </div>
                 </div>
               </div>
@@ -109,10 +105,10 @@ export default function TopupModal({
           </Card>
 
           {/* 支付凭证上传（可选） */}
-          <Card>
+          <Card className="border-gray-200 bg-white">
             <CardHeader>
-              <CardTitle className="text-lg">上传支付凭证（可选）</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-lg text-black">上传支付凭证（可选）</CardTitle>
+              <CardDescription className="text-gray-500">
                 为了更快到账，建议上传支付凭证截图
               </CardDescription>
             </CardHeader>
@@ -121,8 +117,8 @@ export default function TopupModal({
                 <div
                   className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
                     receiptImage
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
+                      ? 'border-black bg-gray-50'
+                      : 'border-gray-300 hover:border-black bg-gray-50'
                   }`}
                 >
                   <input
@@ -135,11 +131,11 @@ export default function TopupModal({
                   <label htmlFor="receipt-upload" className="cursor-pointer">
                     {receiptImage ? (
                       <div className="space-y-2">
-                        <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
-                        <div className="text-sm font-medium text-green-700">
+                        <CheckCircle className="w-12 h-12 text-black mx-auto" />
+                        <div className="text-sm font-medium text-black">
                           {receiptImage.name}
                         </div>
-                        <div className="text-xs text-green-600">
+                        <div className="text-xs text-gray-600">
                           点击更换图片
                         </div>
                       </div>
@@ -158,12 +154,12 @@ export default function TopupModal({
                 </div>
 
                 {previewUrl && (
-                  <div className="relative w-full h-32 rounded-lg overflow-hidden border">
+                  <div className="relative w-full h-32 rounded-lg overflow-hidden border border-gray-200">
                     <Image
                       src={previewUrl}
                       alt="支付凭证预览"
                       fill
-                      className="object-contain"
+                      className="object-contain bg-white"
                     />
                   </div>
                 )}
@@ -173,10 +169,17 @@ export default function TopupModal({
 
           {/* 操作按钮 */}
           <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
               取消
             </Button>
-            <Button onClick={handleConfirm} className="min-w-[120px]">
+            <Button
+              onClick={handleConfirm}
+              className="bg-black text-white hover:bg-gray-800 min-w-[120px]"
+            >
               确认已支付
             </Button>
           </div>
