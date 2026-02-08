@@ -3,19 +3,16 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, Zap, TrendingUp, ArrowRight, QrCode } from 'lucide-react';
+import { Check, Zap, TrendingUp, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { CREDITS_TIERS, FREE_QUOTA } from '@/lib/pricing';
 import { createToken } from '@/lib/auth';
 import { toast } from 'sonner';
-import QRCodeTopupModal from '@/components/QRCodeTopupModal';
 
 export default function PricingPage() {
   const [user, setUser] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
-  const [selectedTier, setSelectedTier] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isQRCodeModalOpen, setIsQRCodeModalOpen] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -52,51 +49,56 @@ export default function PricingPage() {
     }
   };
 
-  const handleTopupClick = (tier: any) => {
+  const handleTopupClick = async (tier: any) => {
     if (!user) {
       window.location.href = '/login';
       return;
     }
-    setSelectedTier(tier);
-    setIsQRCodeModalOpen(true);
-  };
-
-  const handleQRCodeTopup = async (receiptFileKey: string) => {
-    if (!user || !selectedTier) return;
 
     try {
+      setIsLoading(true);
+
       const token = await createToken({
         userId: user.id,
         email: user.email,
         name: user.name,
       });
 
-      const topupResponse = await fetch('/api/user/topup-qrcode', {
+      const topupResponse = await fetch('/api/user/topup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          tierId: selectedTier.id,
-          receiptFileKey,
+          tierId: tier.id,
         }),
       });
 
       if (!topupResponse.ok) {
-        throw new Error('充值失败');
+        const errorData = await topupResponse.json().catch(() => ({ error: '未知错误' }));
+
+        if (errorData.error === 'alipay_not_configured') {
+          throw new Error('支付宝支付功能尚未配置，请联系管理员配置支付宝环境变量');
+        }
+
+        throw new Error(errorData.message || errorData.error || '创建订单失败');
       }
 
       const topupData = await topupResponse.json();
 
-      toast.success('充值订单已提交，请等待管理员审核');
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      // 跳转到支付宝支付页面
+      if (topupData.paymentUrl) {
+        window.location.href = topupData.paymentUrl;
+      } else {
+        throw new Error('支付链接无效');
+      }
     } catch (error) {
-      console.error('充值失败:', error);
-      toast.error('充值失败，请稍后重试');
+      console.error('创建订单失败:', error);
+      const errorMessage = error instanceof Error ? error.message : '创建订单失败，请稍后重试';
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -164,12 +166,12 @@ export default function PricingPage() {
         </div>
       )}
 
-      {/* Topup Method Notice */}
-      <div className="bg-green-50 border-b border-green-200">
+      {/* Alipay Status Notice */}
+      <div className="bg-blue-50 border-b border-blue-200">
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center justify-center text-sm">
-            <span className="text-green-700">
-              💰 当前支持扫码充值：选择档位后扫码支付，上传支付凭证，管理员审核后自动增加积分。
+            <span className="text-blue-700">
+              ⚠️ 支付宝支付功能需要配置环境变量后才能使用。如需充值，请联系管理员配置支付宝（ALIPAY_APP_ID、ALIPAY_PRIVATE_KEY、ALIPAY_PUBLIC_KEY）。
             </span>
           </div>
         </div>
@@ -269,9 +271,10 @@ export default function PricingPage() {
                         : 'bg-white text-black border border-gray-300 hover:bg-gray-50'
                     }`}
                     onClick={() => handleTopupClick(tier)}
+                    disabled={isLoading}
                   >
-                    {user ? '扫码充值' : '登录充值'}
-                    <QrCode className="w-4 h-4 ml-2" />
+                    {isLoading ? '创建订单中...' : user ? '立即充值' : '登录充值'}
+                    <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </CardContent>
               </Card>
@@ -340,15 +343,15 @@ export default function PricingPage() {
                 <CardContent className="p-6">
                   <h4 className="text-sm font-medium text-black mb-2">如何充值？</h4>
                   <p className="text-sm text-gray-600">
-                    登录后选择充值档位，点击"扫码充值"按钮，扫码支付后上传凭证。管理员审核通过后，积分会自动增加到您的账户。
+                    登录后选择充值档位，点击"立即充值"按钮，系统会跳转到支付宝支付页面。支付成功后，系统会自动增加积分到您的账户。
                   </p>
                 </CardContent>
               </Card>
               <Card className="border-gray-200 bg-white">
                 <CardContent className="p-6">
-                  <h4 className="text-sm font-medium text-black mb-2">积分可以累积吗？</h4>
+                  <h4 className="text-sm font-medium text-black mb-2">充值提示"支付宝功能尚未配置"怎么办？</h4>
                   <p className="text-sm text-gray-600">
-                    是的，积分可以累积使用，没有有效期限制。
+                    这表示系统尚未配置支付宝支付功能。请联系管理员配置支付宝环境变量（ALIPAY_APP_ID、ALIPAY_PRIVATE_KEY、ALIPAY_PUBLIC_KEY）后即可使用。
                   </p>
                 </CardContent>
               </Card>
@@ -356,19 +359,6 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
-
-      {/* QRCode Topup Modal */}
-      {selectedTier && (
-        <QRCodeTopupModal
-          open={isQRCodeModalOpen}
-          onOpenChange={setIsQRCodeModalOpen}
-          tierId={selectedTier.id}
-          tierName={selectedTier.name}
-          credits={selectedTier.credits}
-          price={selectedTier.price}
-          onConfirm={handleQRCodeTopup}
-        />
-      )}
     </div>
   );
 }
