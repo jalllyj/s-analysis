@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
+import { createToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,11 +40,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 生成JWT token
+    const token = await createToken({
+      userId: user.id,
+      email: user.email,
+      name: user.name || '',
+    });
+
     // 返回用户信息（不包含密码）
     const { password: _, ...userWithoutPassword } = user;
 
     return NextResponse.json({
       message: '登录成功',
+      token,
       user: userWithoutPassword,
     });
   } catch (error) {

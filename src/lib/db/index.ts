@@ -1,14 +1,7 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import pg from 'pg';
+import { getDb } from 'coze-coding-dev-sdk';
+import * as schema from './schema';
 
-const { Pool } = pg;
-
-// 创建PostgreSQL连接池
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-// 创建Drizzle实例
-export const db = drizzle(pool);
+// 使用coze-coding-dev-sdk获取数据库实例
+export const db = await getDb(schema);
 
 export default db;
