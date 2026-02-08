@@ -19,7 +19,7 @@ export const FEISHU_CONFIG = {
   apiBaseUrl: 'https://open.feishu.cn/open-apis',
 };
 
-// 充值审核通知消息模板（交互式版本）
+// 充值审核通知消息模板（使用快速审核链接）
 export function createTopupApprovalMessage(data: {
   requestId: number;
   email: string;
@@ -29,9 +29,8 @@ export function createTopupApprovalMessage(data: {
   receiptUrl?: string;
   createdAt: Date;
 }) {
-  const approveUrl = `${FEISHU_CONFIG.appUrl}/quick-topup/${data.requestId}?action=approve`;
-  const rejectUrl = `${FEISHU_CONFIG.appUrl}/quick-topup/${data.requestId}?action=reject`;
-  const adminUrl = `${FEISHU_CONFIG.appUrl}/admin/topup`;
+  const quickApproveUrl = `${FEISHU_CONFIG.appUrl}/approve/${data.requestId}`;
+  const quickRejectUrl = `${FEISHU_CONFIG.appUrl}/reject/${data.requestId}`;
 
   return {
     msg_type: 'interactive',
@@ -64,7 +63,7 @@ export function createTopupApprovalMessage(data: {
                 content: '✅ 通过',
               },
               type: 'primary',
-              url: approveUrl,
+              url: quickApproveUrl,
             },
             {
               tag: 'button',
@@ -73,15 +72,7 @@ export function createTopupApprovalMessage(data: {
                 content: '❌ 拒绝',
               },
               type: 'danger',
-              url: rejectUrl,
-            },
-            {
-              tag: 'button',
-              text: {
-                tag: 'plain_text',
-                content: '📋 查看详情',
-              },
-              url: adminUrl,
+              url: quickRejectUrl,
             },
           ],
         },
@@ -90,7 +81,7 @@ export function createTopupApprovalMessage(data: {
           elements: [
             {
               tag: 'plain_text',
-              content: '💡 隧道密码: 115.190.93.94 (首次访问时需要输入)',
+              content: '💡 点击按钮即可完成审核，无需登录，全程在浏览器中完成',
             },
           ],
         },
