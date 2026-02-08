@@ -1,6 +1,7 @@
 export interface CreditsTier {
   id: string;
   name: string;
+  description: string;
   credits: number;
   price: number;
   currency: string;
@@ -18,6 +19,7 @@ export const CREDITS_TIERS: CreditsTier[] = [
   {
     id: 'credits_10',
     name: '入门包',
+    description: '适合少量分析需求',
     credits: 10,
     price: 9.9,
     currency: 'CNY',
@@ -29,46 +31,14 @@ export const CREDITS_TIERS: CreditsTier[] = [
   {
     id: 'credits_50',
     name: '经济包',
+    description: '性价比之选，推荐',
     credits: 50,
     price: 39.9,
     currency: 'CNY',
     unitPrice: 0.798,
-    discount: '省19%',
+    discount: '省20%',
     popular: true,
     stripePriceId: 'price_credits_50_placeholder',
-  },
-  {
-    id: 'credits_100',
-    name: '优选包',
-    credits: 100,
-    price: 69.9,
-    currency: 'CNY',
-    unitPrice: 0.699,
-    discount: '省29%',
-    popular: false,
-    stripePriceId: 'price_credits_100_placeholder',
-  },
-  {
-    id: 'credits_200',
-    name: '超值包',
-    credits: 200,
-    price: 129.9,
-    currency: 'CNY',
-    unitPrice: 0.65,
-    discount: '省34%',
-    popular: false,
-    stripePriceId: 'price_credits_200_placeholder',
-  },
-  {
-    id: 'credits_500',
-    name: '尊享包',
-    credits: 500,
-    price: 299.9,
-    currency: 'CNY',
-    unitPrice: 0.6,
-    discount: '省39%',
-    popular: false,
-    stripePriceId: 'price_credits_500_placeholder',
   },
 ];
 
@@ -78,13 +48,7 @@ export function getTierById(tierId: string): CreditsTier | undefined {
 
 export function calculatePrice(credits: number): number {
   // 根据积分数量计算价格（自动选择最优档位）
-  if (credits >= 500) {
-    return 299.9;
-  } else if (credits >= 200) {
-    return 129.9;
-  } else if (credits >= 100) {
-    return 69.9;
-  } else if (credits >= 50) {
+  if (credits >= 50) {
     return 39.9;
   } else if (credits >= 10) {
     return 9.9;

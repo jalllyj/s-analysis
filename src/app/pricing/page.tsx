@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, Zap, TrendingUp, Sparkles } from 'lucide-react';
+import { Check, Zap, TrendingUp, Sparkles, ArrowRight, Shield, Clock, Gift } from 'lucide-react';
 import Link from 'next/link';
 import { CREDITS_TIERS, FREE_QUOTA } from '@/lib/pricing';
 import { createToken } from '@/lib/auth';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 export default function PricingPage() {
   const [user, setUser] = useState<any>(null);
+  const [subscription, setSubscription] = useState<any>(null);
   const [selectedTier, setSelectedTier] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -19,40 +20,34 @@ export default function PricingPage() {
     const userData = localStorage.getItem('user');
     if (userData) {
       setUser(JSON.parse(userData));
+      fetchSubscription();
     }
   }, []);
 
-  const getTierColor = (tierId: string) => {
-    switch (tierId) {
-      case 'credits_10':
-        return 'from-gray-500 to-gray-600';
-      case 'credits_50':
-        return 'from-blue-500 to-blue-600';
-      case 'credits_100':
-        return 'from-purple-500 to-purple-600';
-      case 'credits_200':
-        return 'from-amber-500 to-amber-600';
-      case 'credits_500':
-        return 'from-rose-500 to-rose-600';
-      default:
-        return 'from-gray-500 to-gray-600';
-    }
-  };
+  const fetchSubscription = async () => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (!userData) return;
 
-  const getTierIcon = (tierId: string) => {
-    switch (tierId) {
-      case 'credits_10':
-        return <Zap className="w-8 h-8" />;
-      case 'credits_50':
-        return <TrendingUp className="w-8 h-8" />;
-      case 'credits_100':
-        return <Sparkles className="w-8 h-8" />;
-      case 'credits_200':
-        return <Sparkles className="w-8 h-8" />;
-      case 'credits_500':
-        return <Sparkles className="w-8 h-8" />;
-      default:
-        return null;
+      const user = JSON.parse(userData);
+      const token = await createToken({
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+      });
+
+      const response = await fetch('/api/user/subscription', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSubscription(data);
+      }
+    } catch (error) {
+      console.error('获取订阅信息失败:', error);
     }
   };
 
@@ -126,18 +121,20 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white/10 backdrop-blur-lg border-b border-white/20">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             股票智能分析
           </h1>
           <div className="flex gap-4">
             {user ? (
               <>
                 <Link href="/">
-                  <Button variant="ghost">返回首页</Button>
+                  <Button variant="ghost" className="text-white hover:text-white">
+                    返回首页
+                  </Button>
                 </Link>
                 <Button
                   variant="outline"
@@ -145,6 +142,7 @@ export default function PricingPage() {
                     localStorage.removeItem('user');
                     window.location.href = '/login';
                   }}
+                  className="text-white border-white/30 hover:bg-white/10"
                 >
                   退出登录
                 </Button>
@@ -152,10 +150,14 @@ export default function PricingPage() {
             ) : (
               <>
                 <Link href="/login">
-                  <Button variant="ghost">登录</Button>
+                  <Button variant="ghost" className="text-white hover:text-white">
+                    登录
+                  </Button>
                 </Link>
                 <Link href="/register">
-                  <Button>注册</Button>
+                  <Button className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600">
+                    注册
+                  </Button>
                 </Link>
               </>
             )}
@@ -163,173 +165,187 @@ export default function PricingPage() {
         </div>
       </div>
 
-      {/* Pricing Section */}
+      {/* User Stats */}
+      {subscription && (
+        <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-b border-white/10">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-center gap-8 text-white">
+              <div className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-yellow-400" />
+                <span className="text-sm">免费额度: {subscription.usage.freeQuotaRemaining}/{FREE_QUOTA}</span>
+              </div>
+              <div className="w-px h-4 bg-white/30" />
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+                <span className="text-sm">积分: {subscription.usage.creditsRemaining}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hero Section */}
       <div className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4">灵活充值，按需使用</h2>
-          <p className="text-xl text-gray-600">
+        <div className="text-center mb-16">
+          <h2 className="text-5xl font-bold mb-4 text-white">
+            灵活充值，按需使用
+          </h2>
+          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
             每月{FREE_QUOTA}次免费分析，超出后按积分充值，积分永久有效
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
+        {/* Pricing Cards */}
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-16">
           {CREDITS_TIERS.map((tier) => (
             <Card
               key={tier.id}
-              className={`relative overflow-hidden transition-all hover:shadow-xl ${
-                tier.popular ? 'border-2 border-blue-500 shadow-lg scale-105' : ''
+              className={`relative overflow-hidden transition-all hover:scale-105 ${
+                tier.popular
+                  ? 'bg-gradient-to-br from-blue-600 to-purple-600 border-0 shadow-2xl'
+                  : 'bg-white/10 backdrop-blur-lg border-white/20'
               }`}
             >
               {tier.popular && (
-                <div className="absolute top-0 right-0 bg-blue-500 text-white px-3 py-1 text-sm font-medium">
-                  推荐
+                <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-4 py-2 text-sm font-bold text-center">
+                  最受欢迎
                 </div>
               )}
-              <CardHeader className={`bg-gradient-to-br ${getTierColor(tier.id)} text-white`}>
+
+              <CardHeader className={tier.popular ? 'text-white pt-8' : 'text-white pt-8'}>
                 <div className="flex items-center gap-3 mb-2">
-                  {getTierIcon(tier.id)}
-                  <CardTitle className="text-xl">{tier.name}</CardTitle>
+                  {tier.id === 'credits_10' ? (
+                    <Zap className="w-10 h-10" />
+                  ) : (
+                    <Sparkles className="w-10 h-10" />
+                  )}
+                  <div>
+                    <CardTitle className="text-2xl">{tier.name}</CardTitle>
+                    <CardDescription className={tier.popular ? 'text-white/80' : 'text-gray-300'}>
+                      {tier.description}
+                    </CardDescription>
+                  </div>
                 </div>
-                <CardDescription className="text-white/90">
-                  {tier.credits} 积分
-                </CardDescription>
               </CardHeader>
-              <CardContent className="p-6">
-                <div className="mb-4">
-                  <span className="text-4xl font-bold">
+
+              <CardContent className="p-8">
+                <div className="mb-6">
+                  <span className={`text-5xl font-bold ${tier.popular ? 'text-white' : 'text-white'}`}>
                     ¥{tier.price}
                   </span>
                 </div>
 
-                <div className="space-y-2 mb-6">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">单价</span>
-                    <span className="font-medium">¥{tier.unitPrice.toFixed(2)}/股</span>
+                <div className="space-y-3 mb-8">
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${tier.popular ? 'text-white/70' : 'text-gray-300'}`}>获得积分</span>
+                    <span className={`text-xl font-semibold ${tier.popular ? 'text-white' : 'text-white'}`}>
+                      {tier.credits} 积分
+                    </span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">折扣</span>
-                    <span className="font-medium text-green-600">{tier.discount}</span>
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${tier.popular ? 'text-white/70' : 'text-gray-300'}`}>单价</span>
+                    <span className={`font-semibold ${tier.popular ? 'text-yellow-300' : 'text-yellow-300'}`}>
+                      ¥{tier.unitPrice.toFixed(2)}/股
+                    </span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">可分析</span>
-                    <span className="font-medium">{tier.credits} 只股票</span>
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${tier.popular ? 'text-white/70' : 'text-gray-300'}`}>优惠</span>
+                    <span className={`font-semibold ${tier.popular ? 'text-green-300' : 'text-green-300'}`}>
+                      {tier.discount}
+                    </span>
                   </div>
                 </div>
 
-                <div className="space-y-2 mb-6">
+                <div className="space-y-3 mb-8">
                   <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-sm">积分永久有效</span>
+                    <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    <span className={`text-sm ${tier.popular ? 'text-white' : 'text-gray-300'}`}>积分永久有效</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-sm">所有分析功能</span>
+                    <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    <span className={`text-sm ${tier.popular ? 'text-white' : 'text-gray-300'}`}>可累积使用</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-sm">支持Excel批量上传</span>
+                    <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    <span className={`text-sm ${tier.popular ? 'text-white' : 'text-gray-300'}`}>所有分析功能</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    <span className={`text-sm ${tier.popular ? 'text-white' : 'text-gray-300'}`}>支持Excel批量上传</span>
                   </div>
                 </div>
 
                 <Button
-                  className="w-full"
-                  variant={tier.popular ? 'default' : 'outline'}
+                  className={`w-full h-12 text-lg ${
+                    tier.popular
+                      ? 'bg-white text-blue-600 hover:bg-gray-100'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600'
+                  }`}
                   onClick={() => handleTopupClick(tier)}
                 >
                   {user ? '立即充值' : '登录充值'}
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Free Tier Info */}
-        <Card className="mt-12 max-w-4xl mx-auto bg-gradient-to-r from-green-50 to-emerald-50">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Zap className="w-8 h-8 text-green-600" />
-              <div>
-                <CardTitle>免费使用</CardTitle>
-                <CardDescription>注册即享每月免费额度</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-green-500" />
-                  <span>每月免费分析额度</span>
-                </div>
-                <span className="text-2xl font-bold text-green-600">{FREE_QUOTA} 次</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-green-500" />
-                  <span>包含功能</span>
-                </div>
-                <span className="text-gray-600">完整分析功能</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-green-500" />
-                  <span>文件格式</span>
-                </div>
-                <span className="text-gray-600">支持Excel上传</span>
-              </div>
-              {!user && (
-                <Link href="/register">
-                  <Button className="w-full mt-4 bg-green-600 hover:bg-green-700">
-                    立即注册，免费使用
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Features */}
+        <div className="max-w-4xl mx-auto">
+          <h3 className="text-2xl font-bold mb-8 text-white text-center">为什么选择我们？</h3>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+              <CardContent className="p-6 text-center">
+                <Shield className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-white mb-2">安全可靠</h4>
+                <p className="text-sm text-gray-300">数据加密存储，保障您的隐私安全</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+              <CardContent className="p-6 text-center">
+                <Clock className="w-12 h-12 text-purple-400 mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-white mb-2">即时到账</h4>
+                <p className="text-sm text-gray-300">支付完成后积分立即到账，无需等待</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+              <CardContent className="p-6 text-center">
+                <Gift className="w-12 h-12 text-pink-400 mx-auto mb-4" />
+                <h4 className="text-lg font-semibold text-white mb-2">免费额度</h4>
+                <p className="text-sm text-gray-300">每月{FREE_QUOTA}次免费分析，畅享基础服务</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         {/* FAQ */}
         <div className="mt-16 max-w-3xl mx-auto">
-          <h3 className="text-2xl font-bold mb-8 text-center">常见问题</h3>
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">如何使用积分？</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  每分析一只股票消耗1积分。每月前{FREE_QUOTA}只股票使用免费额度，
-                  免费额度用完后自动扣除积分。积分充值后永久有效，没有有效期限制。
+          <h3 className="text-2xl font-bold mb-8 text-white text-center">常见问题</h3>
+          <div className="space-y-4">
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+              <CardContent className="p-6">
+                <h4 className="text-lg font-semibold text-white mb-2">如何使用积分？</h4>
+                <p className="text-sm text-gray-300">
+                  每分析一只股票消耗1积分。每月前{FREE_QUOTA}只股票使用免费额度，免费额度用完后自动扣除积分。
                 </p>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">积分可以累积吗？</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  是的，积分可以累积使用，没有有效期限制。您可以一次性购买更多积分享受更优惠的单价。
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+              <CardContent className="p-6">
+                <h4 className="text-lg font-semibold text-white mb-2">积分可以累积吗？</h4>
+                <p className="text-sm text-gray-300">
+                  是的，积分可以累积使用，没有有效期限制。
                 </p>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">免费额度每月会重置吗？</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  是的，免费额度每月1号重置。上月未使用的免费额度不会累积到下月，建议充分利用每月的免费额度。
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">如何充值？</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600">
-                  登录后选择充值档位，扫码支付后点击确认已支付即可。积分会在支付完成后立即到账。
+            <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+              <CardContent className="p-6">
+                <h4 className="text-lg font-semibold text-white mb-2">如何充值？</h4>
+                <p className="text-sm text-gray-300">
+                  登录后选择充值档位，扫码支付后点击确认已支付即可。
                 </p>
               </CardContent>
             </Card>
