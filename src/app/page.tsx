@@ -131,7 +131,7 @@ export default function StockAnalysisPage() {
         throw new Error(`文件上传失败: ${errorData.error || uploadResponse.statusText}`);
       }
 
-      const { fileKey } = await uploadResponse.json();
+      const { fileKey, fileName } = await uploadResponse.json();
       console.log('文件上传成功，fileKey:', fileKey);
       
       setProgressMessage('文件上传成功，开始分析...');
@@ -142,7 +142,7 @@ export default function StockAnalysisPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ fileKey }),
+        body: JSON.stringify({ fileKey, fileName }),
       });
 
       if (!analyzeResponse.ok) {
@@ -258,13 +258,34 @@ export default function StockAnalysisPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-3 flex items-center justify-center gap-3">
-            <TrendingUp className="w-8 h-8 text-blue-600" />
-            股票智能分析工具
-          </h1>
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
+              <TrendingUp className="w-8 h-8 text-blue-600" />
+              股票智能分析工具
+            </h1>
+            <Button
+              variant="outline"
+              onClick={() => window.location.href = '/stats'}
+              className="hidden md:flex"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              数据统计
+            </Button>
+          </div>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             上传包含个股信息的 Excel 文件，AI 将自动分析核心个股识别、产品价格催化、炒作预期、订单确定性、业绩贡献、技术壁垒及热点关联性
           </p>
+          {/* Mobile Stats Button */}
+          <div className="md:hidden mt-4">
+            <Button
+              variant="outline"
+              onClick={() => window.location.href = '/stats'}
+              className="w-full"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              数据统计
+            </Button>
+          </div>
         </div>
 
         {/* Upload Section */}
