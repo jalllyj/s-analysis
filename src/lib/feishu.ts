@@ -15,11 +15,22 @@ export const FEISHU_CONFIG = {
   // 应用访问地址（用于按钮链接）
   appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5000',
 
+  // 飞书应用地址（用于飞书应用内打开）
+  feishuAppUrl: process.env.FEISHU_APP_URL || '',
+
+  // 飞书应用 Home 页面
+  feishuHomeUrl: process.env.FEISHU_HOME_URL || '',
+
   // 飞书API基础URL
   apiBaseUrl: 'https://open.feishu.cn/open-apis',
+
+  // 飞书 OAuth 回调地址
+  oauthRedirectUri: process.env.NEXT_PUBLIC_APP_URL
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/api/feishu/callback`
+    : 'http://localhost:5000/api/feishu/callback',
 };
 
-// 充值审核通知消息模板（使用快速审核链接）
+// 充值审核通知消息模板（飞书应用版本）
 export function createTopupApprovalMessage(data: {
   requestId: number;
   email: string;
@@ -29,8 +40,18 @@ export function createTopupApprovalMessage(data: {
   receiptUrl?: string;
   createdAt: Date;
 }) {
-  const quickApproveUrl = `${FEISHU_CONFIG.appUrl}/approve/${data.requestId}`;
-  const quickRejectUrl = `${FEISHU_CONFIG.appUrl}/reject/${data.requestId}`;
+  // 优先使用飞书应用地址，如果没有配置则使用应用 URL
+  const approveUrl = FEISHU_CONFIG.feishuAppUrl
+    ? `${FEISHU_CONFIG.feishuAppUrl}/approve/${data.requestId}`
+    : `${FEISHU_CONFIG.appUrl}/approve/${data.requestId}`;
+
+  const rejectUrl = FEISHU_CONFIG.feishuAppUrl
+    ? `${FEISHU_CONFIG.feishuAppUrl}/reject/${data.requestId}`
+    : `${FEISHU_CONFIG.appUrl}/reject/${data.requestId}`;
+
+  const detailUrl = FEISHU_CONFIG.feishuAppUrl
+    ? `${FEISHU_CONFIG.feishuAppUrl}/admin/topup`
+    : `${FEISHU_CONFIG.appUrl}/admin/topup`;
 
   return {
     msg_type: 'interactive',
@@ -47,7 +68,7 @@ export function createTopupApprovalMessage(data: {
           tag: 'div',
           text: {
             tag: 'lark_md',
-            content: `**用户邮箱**: ${data.email}\n**充值档位**: ${data.tierName}\n**积分数**: ${data.credits}\n**金额**: ¥${data.price}\n**请求时间**: ${data.createdAt.toLocaleString('zh-CN')}\n**请求ID**: ${data.requestId}`,
+            content: `**用户邮箱**: ${data.email}\n**充值档位**: ${data.tierName}\n**积分数**: ${data.credits}\n**金额**: ¥${data.price}\n**请求时间**: ${data.createdAt.toLocaleString('zh-CN')}`,
           },
         },
         {
@@ -63,7 +84,7 @@ export function createTopupApprovalMessage(data: {
                 content: '✅ 通过',
               },
               type: 'primary',
-              url: quickApproveUrl,
+              url: approveUrl,
             },
             {
               tag: 'button',
@@ -72,7 +93,15 @@ export function createTopupApprovalMessage(data: {
                 content: '❌ 拒绝',
               },
               type: 'danger',
-              url: quickRejectUrl,
+              url: rejectUrl,
+            },
+            {
+              tag: 'button',
+              text: {
+                tag: 'plain_text',
+                content: '📋 查看详情',
+              },
+              url: detailUrl,
             },
           ],
         },
@@ -81,7 +110,7 @@ export function createTopupApprovalMessage(data: {
           elements: [
             {
               tag: 'plain_text',
-              content: '💡 点击按钮即可完成审核，无需登录，全程在浏览器中完成',
+              content: '💡 在飞书应用内完成审核，无需跳转',
             },
           ],
         },
