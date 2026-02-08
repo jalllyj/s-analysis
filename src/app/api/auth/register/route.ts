@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { users, subscriptions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
-import { PRICING_PLANS } from '@/lib/pricing';
+import { FREE_QUOTA } from '@/lib/pricing';
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,11 +44,6 @@ export async function POST(request: NextRequest) {
       .returning();
 
     // 创建免费订阅
-    const freePlan = PRICING_PLANS.find(plan => plan.id === 'free');
-    if (!freePlan) {
-      throw new Error('找不到免费套餐配置');
-    }
-
     const now = new Date();
     const endDate = new Date(now);
     endDate.setMonth(endDate.getMonth() + 1); // 免费试用期1个月
@@ -59,7 +54,7 @@ export async function POST(request: NextRequest) {
       status: 'active',
       startDate: now,
       endDate,
-      monthlyQuota: freePlan.monthlyQuota,
+      monthlyQuota: FREE_QUOTA,
     });
 
     // 返回用户信息（不包含密码）

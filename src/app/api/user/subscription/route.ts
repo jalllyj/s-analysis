@@ -23,16 +23,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 获取当前活跃订阅
+    // 获取当前活跃订阅（简化查询，只检查userId和status）
     const [subscription] = await db
       .select()
       .from(subscriptions)
       .where(
         and(
           eq(subscriptions.userId, payload.userId),
-          eq(subscriptions.status, 'active'),
-          // 检查订阅是否在有效期内
-          sql`${subscriptions.endDate} IS NULL OR ${subscriptions.endDate} > NOW()`
+          eq(subscriptions.status, 'active')
         )
       )
       .limit(1);

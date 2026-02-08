@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, Zap, Star, Crown } from 'lucide-react';
+import { Check, Zap, TrendingUp, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { PRICING_PLANS } from '@/lib/pricing';
+import { CREDITS_TIERS, FREE_QUOTA } from '@/lib/pricing';
 
 export default function PricingPage() {
   const [user, setUser] = useState<any>(null);
+  const [credits, setCredits] = useState<number>(0);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -17,33 +18,37 @@ export default function PricingPage() {
     }
   }, []);
 
-  const getPlanIcon = (planId: string) => {
-    switch (planId) {
-      case 'free':
-        return <Zap className="w-8 h-8" />;
-      case 'basic':
-        return <Star className="w-8 h-8" />;
-      case 'pro':
-        return <Crown className="w-8 h-8" />;
-      case 'enterprise':
-        return <Crown className="w-8 h-8" />;
+  const getTierColor = (tierId: string) => {
+    switch (tierId) {
+      case 'credits_10':
+        return 'from-gray-500 to-gray-600';
+      case 'credits_50':
+        return 'from-blue-500 to-blue-600';
+      case 'credits_100':
+        return 'from-purple-500 to-purple-600';
+      case 'credits_200':
+        return 'from-amber-500 to-amber-600';
+      case 'credits_500':
+        return 'from-rose-500 to-rose-600';
       default:
-        return null;
+        return 'from-gray-500 to-gray-600';
     }
   };
 
-  const getPlanColor = (planId: string) => {
-    switch (planId) {
-      case 'free':
-        return 'from-gray-500 to-gray-600';
-      case 'basic':
-        return 'from-blue-500 to-blue-600';
-      case 'pro':
-        return 'from-purple-500 to-purple-600';
-      case 'enterprise':
-        return 'from-amber-500 to-amber-600';
+  const getTierIcon = (tierId: string) => {
+    switch (tierId) {
+      case 'credits_10':
+        return <Zap className="w-8 h-8" />;
+      case 'credits_50':
+        return <TrendingUp className="w-8 h-8" />;
+      case 'credits_100':
+        return <Sparkles className="w-8 h-8" />;
+      case 'credits_200':
+        return <Sparkles className="w-8 h-8" />;
+      case 'credits_500':
+        return <Sparkles className="w-8 h-8" />;
       default:
-        return 'from-gray-500 to-gray-600';
+        return null;
     }
   };
 
@@ -88,100 +93,127 @@ export default function PricingPage() {
       {/* Pricing Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4">选择适合您的套餐</h2>
+          <h2 className="text-4xl font-bold mb-4">灵活充值，按需使用</h2>
           <p className="text-xl text-gray-600">
-            免费体验，按需升级，随时取消
+            每月{FREE_QUOTA}次免费分析，超出后按积分充值，积分永久有效
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-          {PRICING_PLANS.map((plan) => (
+        <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
+          {CREDITS_TIERS.map((tier) => (
             <Card
-              key={plan.id}
+              key={tier.id}
               className={`relative overflow-hidden transition-all hover:shadow-xl ${
-                plan.id === 'pro' ? 'border-2 border-purple-500 shadow-lg' : ''
+                tier.popular ? 'border-2 border-blue-500 shadow-lg scale-105' : ''
               }`}
             >
-              {plan.id === 'pro' && (
-                <div className="absolute top-0 right-0 bg-purple-500 text-white px-3 py-1 text-sm font-medium">
+              {tier.popular && (
+                <div className="absolute top-0 right-0 bg-blue-500 text-white px-3 py-1 text-sm font-medium">
                   推荐
                 </div>
               )}
-              <CardHeader className={`bg-gradient-to-br ${getPlanColor(plan.id)} text-white`}>
+              <CardHeader className={`bg-gradient-to-br ${getTierColor(tier.id)} text-white`}>
                 <div className="flex items-center gap-3 mb-2">
-                  {getPlanIcon(plan.id)}
-                  <CardTitle className="text-xl">{plan.name}</CardTitle>
+                  {getTierIcon(tier.id)}
+                  <CardTitle className="text-xl">{tier.name}</CardTitle>
                 </div>
                 <CardDescription className="text-white/90">
-                  {plan.description}
+                  {tier.credits} 积分
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <div className="mb-6">
+                <div className="mb-4">
                   <span className="text-4xl font-bold">
-                    {plan.price === 0 ? '免费' : `¥${plan.price}`}
+                    ¥{tier.price}
                   </span>
-                  {plan.price > 0 && <span className="text-gray-600">/月</span>}
-                </div>
-                
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm">
-                      每月 {plan.monthlyQuota} 次免费分析额度
-                    </span>
-                  </div>
-                  {plan.monthlyCredits > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-                      <span className="text-sm">
-                        + {plan.monthlyCredits} 积分/月（可额外分析 {plan.monthlyCredits} 只股票）
-                      </span>
-                    </div>
-                  )}
-                  {plan.monthlyCredits === -1 && (
-                    <div className="flex items-center gap-2">
-                      <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-                      <span className="text-sm">
-                        + 无限积分
-                      </span>
-                    </div>
-                  )}
-                  {plan.features.slice(1).map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
-                    </div>
-                  ))}
                 </div>
 
-                {plan.price === 0 ? (
-                  <Button
-                    className="w-full"
-                    variant={user ? 'outline' : 'default'}
-                    onClick={() => {
-                      if (user) {
-                        window.location.href = '/';
-                      } else {
-                        window.location.href = '/register';
-                      }
-                    }}
-                  >
-                    {user ? '开始使用' : '免费注册'}
-                  </Button>
-                ) : (
-                  <Button
-                    className="w-full"
-                    variant={plan.id === 'pro' ? 'default' : 'outline'}
-                    disabled
-                  >
-                    即将上线
-                  </Button>
-                )}
+                <div className="space-y-2 mb-6">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">单价</span>
+                    <span className="font-medium">¥{tier.unitPrice.toFixed(2)}/股</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">折扣</span>
+                    <span className="font-medium text-green-600">{tier.discount}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">可分析</span>
+                    <span className="font-medium">{tier.credits} 只股票</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-sm">积分永久有效</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-sm">所有分析功能</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-sm">支持Excel批量上传</span>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full"
+                  variant={tier.popular ? 'default' : 'outline'}
+                  disabled
+                >
+                  即将上线
+                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
+
+        {/* Free Tier Info */}
+        <Card className="mt-12 max-w-4xl mx-auto bg-gradient-to-r from-green-50 to-emerald-50">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <Zap className="w-8 h-8 text-green-600" />
+              <div>
+                <CardTitle>免费使用</CardTitle>
+                <CardDescription>注册即享每月免费额度</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span>每月免费分析额度</span>
+                </div>
+                <span className="text-2xl font-bold text-green-600">{FREE_QUOTA} 次</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span>包含功能</span>
+                </div>
+                <span className="text-gray-600">完整分析功能</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span>文件格式</span>
+                </div>
+                <span className="text-gray-600">支持Excel上传</span>
+              </div>
+              {!user && (
+                <Link href="/register">
+                  <Button className="w-full mt-4 bg-green-600 hover:bg-green-700">
+                    立即注册，免费使用
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* FAQ */}
         <div className="mt-16 max-w-3xl mx-auto">
@@ -189,31 +221,42 @@ export default function PricingPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">免费版真的免费吗？</CardTitle>
+                <CardTitle className="text-lg">如何使用积分？</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">
-                  是的，免费版永久免费，每月可以分析5只股票，包含完整的分析功能。
+                  每分析一只股票消耗1积分。每月前{FREE_QUOTA}只股票使用免费额度，
+                  免费额度用完后自动扣除积分。积分充值后永久有效，没有有效期限制。
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">如何升级套餐？</CardTitle>
+                <CardTitle className="text-lg">积分可以累积吗？</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">
-                  登录后访问定价页面，选择合适的套餐即可升级。支付功能即将上线，敬请期待！
+                  是的，积分可以累积使用，没有有效期限制。您可以一次性购买更多积分享受更优惠的单价。
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">可以随时取消订阅吗？</CardTitle>
+                <CardTitle className="text-lg">免费额度每月会重置吗？</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">
-                  是的，您可以随时取消订阅，取消后仍可使用到当前订阅期结束。
+                  是的，免费额度每月1号重置。上月未使用的免费额度不会累积到下月，建议充分利用每月的免费额度。
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">如何充值？</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600">
+                  登录后访问本页面，选择合适的充值档位即可。支付功能即将上线，敬请期待！
                 </p>
               </CardContent>
             </Card>

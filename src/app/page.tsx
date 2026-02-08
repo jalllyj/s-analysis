@@ -335,7 +335,7 @@ export default function StockAnalysisPage() {
             <Link href="/pricing">
               <Button variant="outline" size="sm">
                 <CreditCard className="w-4 h-4 mr-2" />
-                升级套餐
+                充值积分
               </Button>
             </Link>
             <Button
