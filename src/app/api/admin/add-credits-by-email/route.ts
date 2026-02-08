@@ -1,31 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { subscriptions, creditTransactions, users } from '@/lib/db/schema';
+import { subscriptions, creditTransactions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, amount } = await request.json();
+    const { email, credits, description } = await request.json();
 
-    if (!email || !amount) {
+    if (!email) {
       return NextResponse.json(
-        { error: '请提供邮箱和积分数量' },
+        { error: '请提供用户邮箱' },
+        { status: 400 }
+      );
+    }
+
+    if (!credits || credits <= 0) {
+      return NextResponse.json(
+        { error: '请提供有效的积分数量' },
         { status: 400 }
       );
     }
 
     // 查找用户
-    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    const userResult = await db.execute(`
+      SELECT id FROM users WHERE email = '${email}' LIMIT 1
+    `);
 
-    if (!user) {
+    if (!userResult.rows || userResult.rows.length === 0) {
       return NextResponse.json(
         { error: '用户不存在' },
         { status: 404 }
       );
     }
 
-    // 查找用户的订阅
-    const [subscription] = await db.select().from(subscriptions).where(eq(subscriptions.userId, user.id)).limit(1);
+    const userId = Number(userResult.rows[0].id);
+
+    // 获取用户订阅信息
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId))
+      .limit(1);
 
     if (!subscription) {
       return NextResponse.json(
@@ -34,40 +49,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 计算充值后的积分余额
-    const newCreditsBalance = subscription.creditsBalance + amount;
-    const newCreditsGranted = subscription.creditsGranted + amount;
+    // 生成订单号
+    const outTradeNo = `MANUAL_${userId}_${Date.now()}`;
 
-    // 更新订阅信息
-    const [updatedSubscription] = await db.update(subscriptions)
+    // 增加积分
+    await db.update(subscriptions)
       .set({
-        creditsBalance: newCreditsBalance,
-        creditsGranted: newCreditsGranted,
+        creditsBalance: subscription.creditsBalance + credits,
+        creditsGranted: subscription.creditsGranted + credits,
         updatedAt: new Date(),
       })
-      .where(eq(subscriptions.id, subscription.id))
-      .returning();
+      .where(eq(subscriptions.userId, userId));
 
     // 记录积分交易
     await db.insert(creditTransactions).values({
-      userId: user.id,
+      userId: userId,
       subscriptionId: subscription.id,
-      amount: amount,
-      balance: newCreditsBalance,
+      transactionId: outTradeNo,
+      amount: 0,
+      balance: subscription.creditsBalance + credits,
+      credits: credits,
       type: 'grant',
-      description: '管理员充值积分',
+      description: description || `手动充值（${credits}积分）`,
+      status: 'completed',
+      paymentMethod: 'manual',
     });
 
     return NextResponse.json({
-      message: '积分增加成功',
-      user: { id: user.id, email: user.email },
-      subscription: updatedSubscription,
-      creditsAdded: amount,
+      message: '充值成功',
+      userId: userId,
+      email: email,
+      creditsAdded: credits,
+      newBalance: subscription.creditsBalance + credits,
     });
   } catch (error) {
-    console.error('增加积分失败:', error);
+    console.error('手动充值失败:', error);
     return NextResponse.json(
-      { error: '增加积分失败，请稍后重试' },
+      { error: '充值失败，请稍后重试' },
       { status: 500 }
     );
   }
