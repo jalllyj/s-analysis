@@ -55,19 +55,11 @@ export const creditTransactions = pgTable('credit_transactions', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id).notNull(),
   subscriptionId: integer('subscription_id').references(() => subscriptions.id),
-  transactionId: text('transaction_id').unique(), // 商户订单号（支付宝交易）
-  amount: integer('amount').notNull(), // 交易金额（元）
+  amount: integer('amount').notNull(), // 积分变动数量（正数为增加，负数为消耗）
   balance: integer('balance').notNull(), // 交易后余额
-  credits: integer('credits'), // 积分数量（正数为增加，负数为消耗）
   type: text('type').notNull(), // 'grant', 'consume', 'refund'
-  status: text('status').default('completed').notNull(), // 'pending', 'completed', 'failed'
-  paymentMethod: text('payment_method'), // 'alipay', 'wechat', etc.
-  tradeNo: text('trade_no'), // 支付宝交易号
-  buyerId: text('buyer_id'), // 买家ID
   description: text('description'), // 描述
-  completedAt: timestamp('completed_at'), // 完成时间
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // 支付记录表

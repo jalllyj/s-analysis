@@ -7,29 +7,20 @@ import { Check, Zap, TrendingUp, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { CREDITS_TIERS, FREE_QUOTA } from '@/lib/pricing';
 import { createToken } from '@/lib/auth';
+import TopupModal from '@/components/TopupModal';
 import { toast } from 'sonner';
 
 export default function PricingPage() {
   const [user, setUser] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [selectedTier, setSelectedTier] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
       setUser(JSON.parse(userData));
       fetchSubscription();
-    }
-
-    // 检查URL参数，如果有tierId，自动创建订单
-    const urlParams = new URLSearchParams(window.location.search);
-    const tierId = urlParams.get('tierId');
-    if (tierId) {
-      const tier = CREDITS_TIERS.find((t: any) => t.id === tierId);
-      if (tier) {
-        handleTopupClick(tier);
-      }
     }
   }, []);
 
@@ -60,22 +51,42 @@ export default function PricingPage() {
     }
   };
 
-  const handleTopupClick = async (tier: any) => {
+  const handleTopupClick = (tier: any) => {
     if (!user) {
       window.location.href = '/login';
       return;
     }
-
     setSelectedTier(tier);
+    setIsModalOpen(true);
+  };
+
+  const handleTopupConfirm = async (receiptImage?: File) => {
+    if (!user || !selectedTier) return;
 
     try {
-      setIsLoading(true);
-
       const token = await createToken({
         userId: user.id,
         email: user.email,
         name: user.name,
       });
+
+      let receiptFileKey = '';
+      if (receiptImage) {
+        const formData = new FormData();
+        formData.append('file', receiptImage);
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('上传支付凭证失败');
+        }
+
+        const uploadData = await uploadResponse.json();
+        receiptFileKey = uploadData.fileKey;
+      }
 
       const topupResponse = await fetch('/api/user/topup', {
         method: 'POST',
@@ -84,34 +95,25 @@ export default function PricingPage() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          tierId: tier.id,
+          tierId: selectedTier.id,
+          receiptFileKey,
         }),
       });
 
       if (!topupResponse.ok) {
-        const errorData = await topupResponse.json().catch(() => ({ error: '未知错误' }));
-
-        if (errorData.error === 'alipay_not_configured') {
-          throw new Error('支付宝支付功能尚未配置，请联系管理员配置支付宝环境变量');
-        }
-
-        throw new Error(errorData.message || errorData.error || '创建订单失败');
+        throw new Error('充值失败');
       }
 
       const topupData = await topupResponse.json();
 
-      // 跳转到订单确认页面
-      if (topupData.orderConfirmUrl) {
-        window.location.href = topupData.orderConfirmUrl;
-      } else {
-        throw new Error('订单确认链接无效');
-      }
+      toast.success(`充值成功！已获得 ${topupData.creditsAdded} 积分`);
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (error) {
-      console.error('创建订单失败:', error);
-      const errorMessage = error instanceof Error ? error.message : '创建订单失败，请稍后重试';
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
+      console.error('充值失败:', error);
+      toast.error('充值失败，请稍后重试');
     }
   };
 
@@ -178,17 +180,6 @@ export default function PricingPage() {
           </div>
         </div>
       )}
-
-      {/* Alipay Status Notice */}
-      <div className="bg-blue-50 border-b border-blue-200">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-center text-sm">
-            <span className="text-blue-700">
-              ⚠️ 支付宝支付功能需要配置环境变量后才能使用。如需充值，请联系管理员配置支付宝（ALIPAY_APP_ID、ALIPAY_PRIVATE_KEY、ALIPAY_PUBLIC_KEY）。
-            </span>
-          </div>
-        </div>
-      </div>
 
       {/* Main Content */}
       <div className="p-4 md:p-8">
@@ -284,9 +275,8 @@ export default function PricingPage() {
                         : 'bg-white text-black border border-gray-300 hover:bg-gray-50'
                     }`}
                     onClick={() => handleTopupClick(tier)}
-                    disabled={isLoading}
                   >
-                    {isLoading ? '创建订单中...' : user ? '立即充值' : '登录充值'}
+                    {user ? '立即充值' : '登录充值'}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </CardContent>
@@ -356,15 +346,7 @@ export default function PricingPage() {
                 <CardContent className="p-6">
                   <h4 className="text-sm font-medium text-black mb-2">如何充值？</h4>
                   <p className="text-sm text-gray-600">
-                    登录后选择充值档位，点击"立即充值"按钮，系统会跳转到支付宝支付页面。支付成功后，系统会自动增加积分到您的账户。
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="border-gray-200 bg-white">
-                <CardContent className="p-6">
-                  <h4 className="text-sm font-medium text-black mb-2">充值提示"支付宝功能尚未配置"怎么办？</h4>
-                  <p className="text-sm text-gray-600">
-                    这表示系统尚未配置支付宝支付功能。请联系管理员配置支付宝环境变量（ALIPAY_APP_ID、ALIPAY_PRIVATE_KEY、ALIPAY_PUBLIC_KEY）后即可使用。
+                    登录后选择充值档位，扫码支付后点击确认已支付即可。
                   </p>
                 </CardContent>
               </Card>
@@ -372,6 +354,19 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
+
+      {/* Topup Modal */}
+      {selectedTier && (
+        <TopupModal
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          tierId={selectedTier.id}
+          tierName={selectedTier.name}
+          credits={selectedTier.credits}
+          price={selectedTier.price}
+          onConfirm={handleTopupConfirm}
+        />
+      )}
     </div>
   );
 }
