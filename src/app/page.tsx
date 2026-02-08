@@ -3,14 +3,26 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileText, Loader2, TrendingUp, AlertCircle, CheckCircle2, Star, Award } from 'lucide-react';
+import { Upload, FileText, Loader2, TrendingUp, AlertCircle, CheckCircle2, Star, Award, Calendar, Clock, Zap } from 'lucide-react';
+
+interface CatalystEvent {
+  timeRange: string;
+  event: string;
+  importance: number;
+  type: string;
+  certainty: number;
+  description: string;
+}
 
 interface StockAnalysis {
   name: string;
   code: string;
   analysis: string;
   catalysts: string[];
-  expectedNews: string[];
+  catalystTimeline: CatalystEvent[];
+  shortTermCatalysts: string[];
+  mediumTermCatalysts: string[];
+  longTermLogic: string;
   businessInfo: string;
   orderCertainty: number;
   performanceContribution: string;
@@ -335,18 +347,103 @@ export default function StockAnalysisPage() {
                     </ul>
                   </div>
 
-                  {/* 可炒作的消息预期 */}
-                  <div>
-                    <h3 className="font-semibold mb-2 flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-orange-600" />
-                      可炒作的消息预期
-                    </h3>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                      {stock.expectedNews.map((news, i) => (
-                        <li key={i}>{news}</li>
-                      ))}
-                    </ul>
-                  </div>
+                  {/* 催化时间线 - 1-3个月 */}
+                  {stock.shortTermCatalysts.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-green-600" />
+                        1-3个月可炒作预期（短期催化）
+                      </h3>
+                      <div className="space-y-2">
+                        {stock.shortTermCatalysts.map((catalyst, i) => (
+                          <div
+                            key={i}
+                            className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800"
+                          >
+                            <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                              {catalyst}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 催化时间线 - 3-6个月 */}
+                  {stock.mediumTermCatalysts.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-blue-600" />
+                        3-6个月核心催化（中期催化）
+                      </h3>
+                      <div className="space-y-2">
+                        {stock.mediumTermCatalysts.map((catalyst, i) => (
+                          <div
+                            key={i}
+                            className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800"
+                          >
+                            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                              {catalyst}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 大周期硬逻辑 */}
+                  {stock.longTermLogic && (
+                    <div>
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <Zap className="w-4 h-4 text-amber-600" />
+                        大周期硬逻辑
+                      </h3>
+                      <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-lg border-2 border-amber-300 dark:border-amber-700">
+                        <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 whitespace-pre-line">
+                          {stock.longTermLogic}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 详细催化时间线 */}
+                  {stock.catalystTimeline.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-purple-600" />
+                        详细催化时间线
+                      </h3>
+                      <div className="space-y-3">
+                        {stock.catalystTimeline.map((event, i) => (
+                          <div
+                            key={i}
+                            className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-1 text-xs font-semibold rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                                  {event.timeRange}
+                                </span>
+                                <span className="px-2 py-1 text-xs font-medium rounded bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                  {event.type}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  重要性: {event.importance}/10
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  确定性: {event.certainty}/10
+                                </span>
+                              </div>
+                            </div>
+                            <h4 className="font-semibold text-sm mb-1">{event.event}</h4>
+                            <p className="text-sm text-muted-foreground">{event.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* 业务信息 */}
                   <div>
