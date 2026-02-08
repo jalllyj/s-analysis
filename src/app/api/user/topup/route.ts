@@ -5,10 +5,25 @@ import { eq } from 'drizzle-orm';
 import { verifyToken, parseAuthHeader } from '@/lib/auth';
 import { getTierById } from '@/lib/pricing';
 import { buildPaymentUrl } from '@/lib/alipay/utils';
+import { validateAlipayConfig } from '@/lib/alipay/config';
 import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
+    // 检查支付宝配置
+    const isConfigured = validateAlipayConfig();
+
+    if (!isConfigured) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'alipay_not_configured',
+          message: '支付宝支付功能尚未配置，请联系管理员配置支付宝环境变量（ALIPAY_APP_ID、ALIPAY_PRIVATE_KEY、ALIPAY_PUBLIC_KEY）',
+        },
+        { status: 503 }
+      );
+    }
+
     // 验证用户身份
     const token = parseAuthHeader(request);
     if (!token) {

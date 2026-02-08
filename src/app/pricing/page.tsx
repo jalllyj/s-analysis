@@ -79,7 +79,13 @@ export default function PricingPage() {
       });
 
       if (!topupResponse.ok) {
-        throw new Error('创建订单失败');
+        const errorData = await topupResponse.json().catch(() => ({ error: '未知错误' }));
+
+        if (errorData.error === 'alipay_not_configured') {
+          throw new Error('支付宝支付功能尚未配置，请联系管理员配置支付宝环境变量');
+        }
+
+        throw new Error(errorData.message || errorData.error || '创建订单失败');
       }
 
       const topupData = await topupResponse.json();
@@ -92,7 +98,8 @@ export default function PricingPage() {
       }
     } catch (error) {
       console.error('创建订单失败:', error);
-      toast.error('创建订单失败，请稍后重试');
+      const errorMessage = error instanceof Error ? error.message : '创建订单失败，请稍后重试';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -161,6 +168,17 @@ export default function PricingPage() {
           </div>
         </div>
       )}
+
+      {/* Alipay Status Notice */}
+      <div className="bg-blue-50 border-b border-blue-200">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-center text-sm">
+            <span className="text-blue-700">
+              ⚠️ 支付宝支付功能需要配置环境变量后才能使用。如需充值，请联系管理员配置支付宝（ALIPAY_APP_ID、ALIPAY_PRIVATE_KEY、ALIPAY_PUBLIC_KEY）。
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Main Content */}
       <div className="p-4 md:p-8">
@@ -328,7 +346,15 @@ export default function PricingPage() {
                 <CardContent className="p-6">
                   <h4 className="text-sm font-medium text-black mb-2">如何充值？</h4>
                   <p className="text-sm text-gray-600">
-                    登录后选择充值档位，扫码支付后点击确认已支付即可。
+                    登录后选择充值档位，点击"立即充值"按钮，系统会跳转到支付宝支付页面。支付成功后，系统会自动增加积分到您的账户。
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="border-gray-200 bg-white">
+                <CardContent className="p-6">
+                  <h4 className="text-sm font-medium text-black mb-2">充值提示"支付宝功能尚未配置"怎么办？</h4>
+                  <p className="text-sm text-gray-600">
+                    这表示系统尚未配置支付宝支付功能。请联系管理员配置支付宝环境变量（ALIPAY_APP_ID、ALIPAY_PRIVATE_KEY、ALIPAY_PUBLIC_KEY）后即可使用。
                   </p>
                 </CardContent>
               </Card>
