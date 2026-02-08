@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 export default function PricingPage() {
   const [user, setUser] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
+  const [selectedTier, setSelectedTier] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -54,6 +55,8 @@ export default function PricingPage() {
       window.location.href = '/login';
       return;
     }
+
+    setSelectedTier(tier);
 
     try {
       setIsLoading(true);
