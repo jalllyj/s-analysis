@@ -35,12 +35,7 @@ export default function LoginPage() {
         return;
       }
 
-      // 保存用户信息
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.token);
 
-      // 跳转到首页
-      window.location.href = '/';
     } catch (error) {
       setError('登录失败，请稍后重试');
     } finally {
