@@ -9,12 +9,9 @@ import { sendFeishuWebhookMessage } from '@/lib/feishu-api';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[充值] 开始处理充值请求');
-
     // 验证用户身份
     const token = parseAuthHeader(request);
     if (!token) {
-      console.error('[充值] 未提供 token');
       return NextResponse.json(
         { error: '未授权' },
         { status: 401 }
@@ -23,21 +20,15 @@ export async function POST(request: NextRequest) {
 
     const payload = await verifyToken(token);
     if (!payload) {
-      console.error('[充值] Token 验证失败');
       return NextResponse.json(
         { error: '无效的token' },
         { status: 401 }
       );
     }
 
-    console.log('[充值] 用户 ID:', payload.userId);
-
     const { tierId, receiptFileKey } = await request.json();
 
-    console.log('[充值] 请求参数:', { tierId, receiptFileKey });
-
     if (!tierId) {
-      console.error('[充值] 缺少 tierId');
       return NextResponse.json(
         { error: '请选择充值档位' },
         { status: 400 }
@@ -90,7 +81,7 @@ export async function POST(request: NextRequest) {
         tierId: tier.id,
         tierName: tier.name,
         credits: tier.credits,
-        price: tier.price,
+        price: tier.price.toString(),
         receiptFileKey: receiptFileKey || null,
         status: 'pending',
         createdAt: new Date(),
@@ -105,14 +96,12 @@ export async function POST(request: NextRequest) {
         email: user[0].email,
         tierName: tier.name,
         credits: tier.credits,
-        price: tier.price,
+        price: tier.price.toString(),
         receiptUrl: receiptFileKey,
         createdAt: topupRequest.createdAt,
       });
 
-      console.log('准备发送飞书消息:', JSON.stringify(feishuMessage, null, 2));
-      const sendResult = await sendFeishuWebhookMessage(feishuMessage);
-      console.log('飞书消息发送结果:', sendResult);
+      await sendFeishuWebhookMessage(feishuMessage);
     } catch (feishuError) {
       console.error('发送飞书消息失败:', feishuError);
       // 不影响充值请求的创建，只是无法通知管理员
