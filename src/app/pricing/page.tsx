@@ -6,10 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Check, Zap, TrendingUp, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { CREDITS_TIERS, FREE_QUOTA } from '@/lib/pricing';
+import { createToken } from '@/lib/auth';
+import TopupModal from '@/components/TopupModal';
+import { toast } from 'sonner';
 
 export default function PricingPage() {
   const [user, setUser] = useState<any>(null);
-  const [credits, setCredits] = useState<number>(0);
+  const [selectedTier, setSelectedTier] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -49,6 +53,75 @@ export default function PricingPage() {
         return <Sparkles className="w-8 h-8" />;
       default:
         return null;
+    }
+  };
+
+  const handleTopupClick = (tier: any) => {
+    if (!user) {
+      window.location.href = '/login';
+      return;
+    }
+    setSelectedTier(tier);
+    setIsModalOpen(true);
+  };
+
+  const handleTopupConfirm = async (receiptImage?: File) => {
+    if (!user || !selectedTier) return;
+
+    try {
+      const token = await createToken({
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+      });
+
+      // 如果有支付凭证，先上传
+      let receiptFileKey = '';
+      if (receiptImage) {
+        const formData = new FormData();
+        formData.append('file', receiptImage);
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('上传支付凭证失败');
+        }
+
+        const uploadData = await uploadResponse.json();
+        receiptFileKey = uploadData.fileKey;
+      }
+
+      // 调用充值API
+      const topupResponse = await fetch('/api/user/topup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          tierId: selectedTier.id,
+          receiptFileKey,
+        }),
+      });
+
+      if (!topupResponse.ok) {
+        throw new Error('充值失败');
+      }
+
+      const topupData = await topupResponse.json();
+
+      toast.success(`充值成功！已获得 ${topupData.creditsAdded} 积分`);
+
+      // 刷新页面以更新积分显示
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error) {
+      console.error('充值失败:', error);
+      toast.error('充值失败，请稍后重试');
     }
   };
 
@@ -161,9 +234,9 @@ export default function PricingPage() {
                 <Button
                   className="w-full"
                   variant={tier.popular ? 'default' : 'outline'}
-                  disabled
+                  onClick={() => handleTopupClick(tier)}
                 >
-                  即将上线
+                  {user ? '立即充值' : '登录充值'}
                 </Button>
               </CardContent>
             </Card>
@@ -256,13 +329,26 @@ export default function PricingPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">
-                  登录后访问本页面，选择合适的充值档位即可。支付功能即将上线，敬请期待！
+                  登录后选择充值档位，扫码支付后点击确认已支付即可。积分会在支付完成后立即到账。
                 </p>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Topup Modal */}
+      {selectedTier && (
+        <TopupModal
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          tierId={selectedTier.id}
+          tierName={selectedTier.name}
+          credits={selectedTier.credits}
+          price={selectedTier.price}
+          onConfirm={handleTopupConfirm}
+        />
+      )}
     </div>
   );
 }

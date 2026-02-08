@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { tierId } = await request.json();
+    const { tierId, receiptFileKey } = await request.json();
 
     if (!tierId) {
       return NextResponse.json(
@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
       subscriptionId: subscription.id,
       amount: tier.price.toString(),
       currency: tier.currency,
+      stripePaymentId: receiptFileKey || null,
       status: 'completed',
     });
 
