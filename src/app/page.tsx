@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileText, Loader2, TrendingUp, AlertCircle, CheckCircle2, Star, Award, Calendar, Clock, Zap, FileCheck, DollarSign, User, Calendar as CalendarIcon, Shield } from 'lucide-react';
+import { Upload, FileText, Loader2, TrendingUp, AlertCircle, CheckCircle2, Star, Award, Calendar, Clock, Zap, FileCheck, DollarSign, User, Calendar as CalendarIcon, Shield, Flame } from 'lucide-react';
 
 interface CatalystEvent {
   timeRange: string;
@@ -27,6 +27,14 @@ interface OrderItem {
   status: string;
 }
 
+interface HotTopic {
+  topicName: string;
+  burstDate: string;
+  relevance: number;
+  connection: string;
+  hasRealConnection: boolean;
+}
+
 interface StockAnalysis {
   name: string;
   code: string;
@@ -38,6 +46,7 @@ interface StockAnalysis {
   longTermLogic: string;
   businessInfo: string;
   orderList: OrderItem[];
+  hotTopics: HotTopic[];
   orderCertainty: number;
   performanceContribution: string;
   technicalBarriers: string;
@@ -346,6 +355,11 @@ export default function StockAnalysisPage() {
                                     大周期逻辑
                                   </span>
                                 )}
+                                {stock.hotTopics.filter(t => t.hasRealConnection).length > 0 && (
+                                  <span className="text-red-600 dark:text-red-400">
+                                    {stock.hotTopics.filter(t => t.hasRealConnection).length} 个热点
+                                  </span>
+                                )}
                                 {stock.orderList.length > 0 && (
                                   <span className="text-green-600 dark:text-green-400">
                                     {stock.orderList.length} 个订单
@@ -541,6 +555,49 @@ export default function StockAnalysisPage() {
                             <p className="text-sm text-muted-foreground">{event.description}</p>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 同花顺热点概念分析 */}
+                  {stock.hotTopics.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <Flame className="w-4 h-4 text-red-600" />
+                        同花顺热点概念分析（最近5个交易日）
+                      </h3>
+                      <div className="space-y-3">
+                        {stock.hotTopics
+                          .filter(topic => topic.hasRealConnection)
+                          .map((topic, i) => (
+                            <div
+                              key={i}
+                              className="p-4 bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 rounded-lg border border-red-200 dark:border-red-800"
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-1 text-xs font-semibold rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                                    {topic.topicName}
+                                  </span>
+                                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <CalendarIcon className="w-3 h-3" />
+                                    {topic.burstDate}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 text-xs">
+                                  <Flame className="w-3 h-3 text-red-600" />
+                                  <span className="font-semibold text-red-600 dark:text-red-400">
+                                    关联度: {topic.relevance}/10
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
+                                <p className="text-sm text-slate-700 dark:text-slate-300">
+                                  {topic.connection}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
                       </div>
                     </div>
                   )}

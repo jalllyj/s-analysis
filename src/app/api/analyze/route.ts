@@ -29,6 +29,14 @@ interface OrderItem {
   status: string; // "执行中" | "待交付" | "已完成" | "待签约"
 }
 
+interface HotTopic {
+  topicName: string; // 热点概念名称
+  burstDate: string; // 爆发日期
+  relevance: number; // 关联度 (1-10)
+  connection: string; // 关联描述
+  hasRealConnection: boolean; // 是否有实际关联
+}
+
 interface AnalysisResult {
   name: string;
   code: string;
@@ -40,6 +48,7 @@ interface AnalysisResult {
   longTermLogic: string; // 大周期硬逻辑
   businessInfo: string;
   orderList: OrderItem[]; // 订单列表（按优先级排序）
+  hotTopics: HotTopic[]; // 热点概念行业分析（新增）
   orderCertainty: number;
   performanceContribution: string;
   technicalBarriers: string;
@@ -161,6 +170,13 @@ export async function POST(request: NextRequest) {
                 query: `${stock.name} ${stock.code} 供需 产能利用率 行业供需 竞争对手 市场格局`,
                 count: 6,
                 timeRange: '1m',
+              },
+              {
+                name: '同花顺热点概念（最近5个交易日）',
+                query: `同花顺 热点概念 行业板块 每日热点 前五概念 最近5个交易日 2025`,
+                count: 10,
+                timeRange: '5d',
+                sites: '10jqka.com.cn',
               },
               {
                 name: '未来催化（1-3个月）',
@@ -321,6 +337,15 @@ export async function POST(request: NextRequest) {
       "status": "订单状态（执行中/待交付/已完成/待签约）"
     }
   ],
+  "hotTopics": [
+    {
+      "topicName": "热点概念名称",
+      "burstDate": "爆发日期（如：2025年1月15日）",
+      "relevance": 关联度评分(1-10),
+      "connection": "关联描述（具体说明公司与热点的实际关联）",
+      "hasRealConnection": true/false (是否有实际关联)
+    }
+  ],
   "orderCertainty": 订单确定性评分(1-10整数),
   "performanceContribution": "业绩贡献：分析当前业务对业绩的潜在贡献，量化影响",
   "technicalBarriers": "技术壁垒：核心技术、专利、产能壁垒、成本优势、客户壁垒",
@@ -380,10 +405,15 @@ ${searchContext}
    - 按优先级排序
 5. 订单确定性和交付周期
 6. 行业供需格局和景气周期
-7. 与当前市场热点的关联性
+7. **同花顺热点概念分析**（重点）：
+   - 根据同花顺最近5个交易日每天前五的热点概念行业进行分析
+   - 标注出热点概念行业爆发的日期
+   - 分析公司与热点的关联性
+   - 必须有实际的关联，没有就跳过
+   - 关联度评分（1-10分）
 8. 综合评估催化概率和确定性
 
-请详细梳理订单列表，按订单确定性→业绩贡献→技术壁垒的优先级排序。`;
+请详细梳理订单列表和热点概念分析，确保热点关联有实际依据。`;
 
             const messages = [
               { role: 'system' as const, content: systemPrompt },
@@ -416,6 +446,7 @@ ${searchContext}
                 longTermLogic: '数据解析失败',
                 businessInfo: response.content,
                 orderList: [],
+                hotTopics: [],
                 orderCertainty: 5,
                 performanceContribution: '数据解析失败',
                 technicalBarriers: '数据解析失败',
