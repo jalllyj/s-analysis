@@ -25,6 +25,7 @@ export default function StockAnalysisPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState<StockAnalysis[]>([]);
   const [error, setError] = useState<string>('');
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,6 +36,31 @@ export default function StockAnalysisPage() {
         return;
       }
       setFile(selectedFile);
+      setError('');
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) {
+      if (!droppedFile.name.endsWith('.xlsx') && !droppedFile.name.endsWith('.xls')) {
+        setError('请上传 Excel 文件（.xlsx 或 .xls）');
+        return;
+      }
+      setFile(droppedFile);
       setError('');
     }
   };
@@ -169,29 +195,35 @@ export default function StockAnalysisPage() {
                 className="hidden"
                 id="file-upload"
               />
-              <label htmlFor="file-upload">
-                <Button
-                  variant="outline"
-                  className="w-full h-32 border-2 border-dashed hover:border-blue-500 transition-colors"
-                  asChild
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`relative w-full h-32 border-2 border-dashed rounded-lg transition-all duration-200 cursor-pointer
+                  ${isDragging
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
+                    : 'border-slate-300 hover:border-blue-500 dark:border-slate-700 dark:hover:border-blue-500'
+                  }`}
+              >
+                <label
+                  htmlFor="file-upload"
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 cursor-pointer"
                 >
-                  <div className="flex flex-col items-center gap-2">
-                    {file ? (
-                      <>
-                        <FileText className="w-8 h-8 text-green-600" />
-                        <span className="text-sm font-medium">{file.name}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-8 h-8 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          点击选择文件或拖拽到此处
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </Button>
-              </label>
+                  {file ? (
+                    <>
+                      <FileText className="w-8 h-8 text-green-600" />
+                      <span className="text-sm font-medium">{file.name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className={`w-8 h-8 ${isDragging ? 'text-blue-600' : 'text-muted-foreground'}`} />
+                      <span className={`text-sm ${isDragging ? 'text-blue-600' : 'text-muted-foreground'}`}>
+                        {isDragging ? '释放文件以上传' : '点击选择文件或拖拽到此处'}
+                      </span>
+                    </>
+                  )}
+                </label>
+              </div>
 
               {error && (
                 <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
