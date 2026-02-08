@@ -52,6 +52,8 @@ export async function GET(request: NextRequest) {
     const usageResult = await db
       .select({
         totalStocks: sql<number>`COALESCE(SUM(${usageRecords.stocksAnalyzed}), 0)`,
+        freeQuotaUsed: sql<number>`COALESCE(SUM(${usageRecords.usedFreeQuota}), 0)`,
+        creditsUsed: sql<number>`COALESCE(SUM(${usageRecords.creditsUsed}), 0)`,
       })
       .from(usageRecords)
       .where(
@@ -62,19 +64,23 @@ export async function GET(request: NextRequest) {
         )
       );
 
-    const totalUsed = usageResult[0]?.totalStocks || 0;
-    const remaining = subscription.monthlyQuota === -1 
-      ? -1 
-      : Math.max(0, subscription.monthlyQuota - totalUsed);
-    const isUnlimited = subscription.monthlyQuota === -1;
+    const freeQuotaUsed = usageResult[0]?.freeQuotaUsed || 0;
+    const creditsUsedThisMonth = usageResult[0]?.creditsUsed || 0;
+
+    const freeQuotaRemaining = Math.max(0, subscription.monthlyQuota - freeQuotaUsed);
+    const creditsRemaining = subscription.creditsBalance;
+    const isUnlimitedCredits = subscription.creditsGranted === -1;
 
     return NextResponse.json({
       subscription,
       usage: {
-        totalUsed,
-        remaining,
-        isUnlimited,
-        monthlyQuota: subscription.monthlyQuota,
+        freeQuotaUsed,
+        freeQuotaRemaining,
+        monthlyFreeQuota: subscription.monthlyQuota,
+        creditsRemaining,
+        creditsUsedThisMonth,
+        isUnlimitedCredits,
+        creditsGranted: subscription.creditsGranted,
       },
     });
   } catch (error) {

@@ -128,9 +128,25 @@ export default function PricingPage() {
                   <div className="flex items-center gap-2">
                     <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
                     <span className="text-sm">
-                      {plan.monthlyQuota === -1 ? '无限次' : `${plan.monthlyQuota}次`}股票分析/月
+                      每月 {plan.monthlyQuota} 次免费分析额度
                     </span>
                   </div>
+                  {plan.monthlyCredits > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <span className="text-sm">
+                        + {plan.monthlyCredits} 积分/月（可额外分析 {plan.monthlyCredits} 只股票）
+                      </span>
+                    </div>
+                  )}
+                  {plan.monthlyCredits === -1 && (
+                    <div className="flex items-center gap-2">
+                      <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <span className="text-sm">
+                        + 无限积分
+                      </span>
+                    </div>
+                  )}
                   {plan.features.slice(1).map((feature, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <Check className="w-5 h-5 text-green-500 flex-shrink-0" />

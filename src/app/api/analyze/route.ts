@@ -115,30 +115,7 @@ export async function POST(request: NextRequest) {
 
         console.log('开始分析请求，fileKey:', fileKey, 'userId:', payload.userId);
 
-        // 检查用户配额
-        const quotaCheck = await checkUserQuota(payload.userId);
-        if (!quotaCheck.allowed) {
-          console.error('配额不足:', quotaCheck.message);
-          safeEnqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: quotaCheck.message })}\n\n`)
-          );
-          safeClose();
-          return;
-        }
-
-        subscriptionId = quotaCheck.subscriptionId;
-        console.log('配额检查通过:', quotaCheck.message);
-
-        if (!fileKey) {
-          console.error('未提供fileKey');
-          safeEnqueue(
-            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: '未提供文件密钥' })}\n\n`)
-          );
-          safeClose();
-          return;
-        }
-
-        // 初始化对象存储
+        // 解析Excel以获取股票数量，用于配额检查
         const storage = new S3Storage({
           endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
           accessKey: '',
@@ -168,7 +145,6 @@ export async function POST(request: NextRequest) {
         function detectStockColumns(data: any[][]): { nameCol: number; codeCol: number; hasHeader: boolean } {
           if (data.length < 2) return { nameCol: 0, codeCol: 1, hasHeader: false };
 
-          // 检测是否有标题行（第一行包含"股票"、"代码"、"名称"等关键词）
           const firstRow = data[0].map((cell) => String(cell || '').toLowerCase());
           const hasHeader = firstRow.some((cell) => 
             cell.includes('股票') || cell.includes('名称') || cell.includes('代码') || cell.includes('name') || cell.includes('code')
@@ -177,23 +153,20 @@ export async function POST(request: NextRequest) {
           const startRow = hasHeader ? 1 : 0;
           const sampleRows = data.slice(startRow, Math.min(startRow + 5, data.length));
 
-          // 扫描每一列，识别股票名称列和股票代码列
           let nameCol = -1;
           let codeCol = -1;
 
-          for (let col = 0; col < 10; col++) { // 检查前10列
+          for (let col = 0; col < 10; col++) {
             const values = sampleRows.map((row) => String(row[col] || '').trim()).filter(v => v);
             
             if (values.length === 0) continue;
 
-            // 检测是否是股票代码列
             const codePattern = values.filter((v) => /^\d{6}$/.test(v) || /^\d{6}\.(SZ|SH|BJ)$/.test(v));
             if (codePattern.length > values.length * 0.5) {
               codeCol = col;
               continue;
             }
 
-            // 检测是否是股票名称列（包含中文，不是纯数字）
             const namePattern = values.filter((v) => 
               /[\u4e00-\u9fa5]/.test(v) && !/^\d+$/.test(v) && v.length >= 2 && v.length <= 8
             );
@@ -202,7 +175,6 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // 如果没找到，使用默认值（第一列名称，第二列代码）
           if (nameCol === -1) nameCol = 0;
           if (codeCol === -1) codeCol = 1;
 
@@ -219,11 +191,8 @@ export async function POST(request: NextRequest) {
           const row = jsonData[i];
           const name = row[nameCol] ? String(row[nameCol]).trim() : '';
           const code = row[codeCol] ? String(row[codeCol]).trim() : '';
-
-          // 清理代码（去除.SZ、.SH等后缀）
           const cleanCode = code.replace(/\.(SZ|SH|BJ)$/i, '');
 
-          // 验证数据有效性
           if (name && cleanCode && cleanCode.length === 6 && /^\d+$/.test(cleanCode)) {
             stocks.push({
               name: name,
@@ -242,6 +211,29 @@ export async function POST(request: NextRequest) {
         }
 
         console.log(`成功识别 ${stocks.length} 只股票:`, stocks.map(s => `${s.name}(${s.code})`).join(', '));
+
+        // 检查用户配额
+        const quotaCheck = await checkUserQuota(payload.userId, stocks.length);
+        if (!quotaCheck.allowed) {
+          console.error('配额不足:', quotaCheck.message);
+          safeEnqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: quotaCheck.message })}\n\n`)
+          );
+          safeClose();
+          return;
+        }
+
+        subscriptionId = quotaCheck.subscriptionId;
+        console.log('配额检查通过:', quotaCheck.message);
+
+        if (!fileKey) {
+          console.error('未提供fileKey');
+          safeEnqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: '未提供文件密钥' })}\n\n`)
+          );
+          safeClose();
+          return;
+        }
 
         // 初始化搜索和 LLM 客户端
         const searchConfig = new Config();

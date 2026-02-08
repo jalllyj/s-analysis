@@ -316,11 +316,20 @@ export default function StockAnalysisPage() {
           </h1>
           <div className="flex items-center gap-4">
             {subscription?.usage && (
-              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
-                <Flame className="w-4 h-4 text-orange-500" />
-                <span className="text-sm">
-                  {subscription.usage.isUnlimited ? '无限' : `剩余 ${subscription.usage.remaining} 次`}
-                </span>
+              <div className="hidden md:flex items-center gap-4 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <span className="text-sm text-gray-600">
+                    免费额度: {subscription.usage.freeQuotaRemaining}/{subscription.usage.monthlyFreeQuota}
+                  </span>
+                </div>
+                <div className="w-px h-4 bg-gray-300" />
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm text-gray-600">
+                    积分: {subscription.usage.isUnlimitedCredits ? '无限' : subscription.usage.creditsRemaining}
+                  </span>
+                </div>
               </div>
             )}
             <Link href="/pricing">

@@ -2,7 +2,8 @@ export interface PricingPlan {
   id: string;
   name: string;
   description: string;
-  monthlyQuota: number;
+  monthlyQuota: number; // 每月免费额度
+  monthlyCredits: number; // 每月赠送积分
   price: number;
   currency: string;
   features: string[];
@@ -15,10 +16,11 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: '免费版',
     description: '适合个人用户体验',
     monthlyQuota: 5,
+    monthlyCredits: 0,
     price: 0,
     currency: 'CNY',
     features: [
-      '每月5次股票分析',
+      '每月5次免费分析',
       '基础分析功能',
       '支持Excel上传',
       '社区支持',
@@ -29,11 +31,13 @@ export const PRICING_PLANS: PricingPlan[] = [
     id: 'basic',
     name: '基础版',
     description: '适合轻度投资者',
-    monthlyQuota: 50,
+    monthlyQuota: 5,
+    monthlyCredits: 50,
     price: 29,
     currency: 'CNY',
     features: [
-      '每月50次股票分析',
+      '每月5次免费分析',
+      '+ 50积分/月（可分析50只股票）',
       '完整分析功能',
       '热点概念分析',
       '订单追踪',
@@ -45,11 +49,13 @@ export const PRICING_PLANS: PricingPlan[] = [
     id: 'pro',
     name: '专业版',
     description: '适合专业投资者',
-    monthlyQuota: 500,
+    monthlyQuota: 5,
+    monthlyCredits: 500,
     price: 99,
     currency: 'CNY',
     features: [
-      '每月500次股票分析',
+      '每月5次免费分析',
+      '+ 500积分/月（可分析500只股票）',
       '所有分析功能',
       '优先技术支持',
       'API访问',
@@ -61,11 +67,13 @@ export const PRICING_PLANS: PricingPlan[] = [
     id: 'enterprise',
     name: '企业版',
     description: '适合机构用户',
-    monthlyQuota: -1, // -1 表示无限
+    monthlyQuota: 5,
+    monthlyCredits: -1, // -1 表示无限
     price: 299,
     currency: 'CNY',
     features: [
-      '无限次股票分析',
+      '每月5次免费分析',
+      '+ 无限积分',
       '专属客户经理',
       '定制化服务',
       '团队协作',
