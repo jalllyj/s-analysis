@@ -112,8 +112,11 @@ export default function StockAnalysisPage() {
     setAnalyzing(true);
     setError('');
     setResults([]);
+    setProgressMessage('正在上传文件...');
 
     try {
+      console.log('开始上传文件:', file.name);
+      
       // 1. 上传文件到对象存储
       const formData = new FormData();
       formData.append('file', file);
@@ -124,10 +127,14 @@ export default function StockAnalysisPage() {
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('文件上传失败');
+        const errorData = await uploadResponse.json().catch(() => ({ error: '未知错误' }));
+        throw new Error(`文件上传失败: ${errorData.error || uploadResponse.statusText}`);
       }
 
       const { fileKey } = await uploadResponse.json();
+      console.log('文件上传成功，fileKey:', fileKey);
+      
+      setProgressMessage('文件上传成功，开始分析...');
 
       // 2. 开始分析
       const analyzeResponse = await fetch('/api/analyze', {
@@ -139,56 +146,96 @@ export default function StockAnalysisPage() {
       });
 
       if (!analyzeResponse.ok) {
-        throw new Error('分析失败');
+        const errorText = await analyzeResponse.text().catch(() => '未知错误');
+        throw new Error(`分析请求失败 (${analyzeResponse.status}): ${errorText}`);
       }
+
+      console.log('分析请求已发送，开始接收流式响应');
 
       // 3. 处理流式响应
       const reader = analyzeResponse.body?.getReader();
       const decoder = new TextDecoder();
 
       if (!reader) {
-        throw new Error('无法读取响应');
+        throw new Error('无法读取响应流');
       }
 
       let buffer = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      let timeoutId: NodeJS.Timeout | null = null;
+      
+      // 设置超时检测（如果30秒内没有任何数据，认为连接断开）
+      const resetTimeout = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          if (analyzing) {
+            console.error('响应超时，未收到数据');
+            setError('分析超时，请重试');
+            setAnalyzing(false);
+            setProgressMessage('');
+          }
+        }, 60000); // 60秒超时
+      };
+      
+      resetTimeout();
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            console.log('流式响应完成');
+            break;
+          }
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') {
-              setAnalyzing(false);
-              setProgressMessage('');
-              return;
-            }
+          // 收到数据，重置超时
+          resetTimeout();
 
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.type === 'result') {
-                setResults(prev => [...prev, parsed.data]);
-                setProgressMessage('');
-              } else if (parsed.type === 'progress') {
-                setProgressMessage(parsed.message);
-              } else if (parsed.type === 'error') {
-                setError(parsed.message);
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              console.log('收到数据:', data);
+
+              if (data === '[DONE]') {
+                console.log('分析完成');
                 setAnalyzing(false);
                 setProgressMessage('');
+                if (timeoutId) clearTimeout(timeoutId);
+                return;
               }
-            } catch (e) {
-              console.error('解析响应失败:', e);
+
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.type === 'result') {
+                  console.log('收到分析结果:', parsed.data.name);
+                  setResults(prev => [...prev, parsed.data]);
+                  setProgressMessage('');
+                } else if (parsed.type === 'progress') {
+                  console.log('分析进度:', parsed.message);
+                  setProgressMessage(parsed.message);
+                } else if (parsed.type === 'error') {
+                  console.error('分析错误:', parsed.message);
+                  setError(parsed.message);
+                  setAnalyzing(false);
+                  setProgressMessage('');
+                  if (timeoutId) clearTimeout(timeoutId);
+                }
+              } catch (e) {
+                console.error('解析响应失败:', e, '原始数据:', data);
+              }
             }
           }
         }
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
       }
     } catch (err) {
+      console.error('上传分析失败:', err);
       setError(err instanceof Error ? err.message : '发生未知错误');
       setAnalyzing(false);
+      setProgressMessage('');
     }
   };
 

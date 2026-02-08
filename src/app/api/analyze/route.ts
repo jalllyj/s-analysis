@@ -196,12 +196,15 @@ export async function POST(request: NextRequest) {
         }
 
         if (stocks.length === 0) {
+          console.error('未找到有效的股票数据');
           safeEnqueue(
             encoder.encode(`data: ${JSON.stringify({ type: 'error', message: '未找到有效的股票数据' })}\n\n`)
           );
           safeClose();
           return;
         }
+
+        console.log(`成功识别 ${stocks.length} 只股票:`, stocks.map(s => `${s.name}(${s.code})`).join(', '));
 
         // 初始化搜索和 LLM 客户端
         const searchConfig = new Config();
@@ -211,8 +214,10 @@ export async function POST(request: NextRequest) {
         const llmClient = new LLMClient(llmConfig);
 
         // 分析每只股票
+        console.log('开始分析股票...');
         for (const stock of stocks) {
           try {
+            console.log(`开始分析股票: ${stock.name}(${stock.code})`);
             safeEnqueue(
               encoder.encode(`data: ${JSON.stringify({ type: 'progress', message: `正在分析 ${stock.name}(${stock.code})...` })}\n\n`)
             );
@@ -554,6 +559,7 @@ ${searchContext}
             analysisData.sources = allSources;
 
             // 发送结果
+            console.log(`股票 ${stock.name} 分析完成，发送结果`);
             safeEnqueue(
               encoder.encode(`data: ${JSON.stringify({ type: 'result', data: analysisData })}\n\n`)
             );
@@ -568,6 +574,7 @@ ${searchContext}
           }
         }
 
+        console.log('所有股票分析完成');
         // 发送完成信号
         safeEnqueue(encoder.encode('data: [DONE]\n\n'));
       } catch (error) {
@@ -576,6 +583,7 @@ ${searchContext}
           encoder.encode(`data: ${JSON.stringify({ type: 'error', message: '分析过程中发生错误' })}\n\n`)
         );
       } finally {
+        console.log('流式响应结束，关闭controller');
         safeClose();
       }
     },
