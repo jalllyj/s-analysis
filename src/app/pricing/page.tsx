@@ -64,14 +64,19 @@ export default function PricingPage() {
     if (!user || !selectedTier) return;
 
     try {
+      console.log('[充值] 开始提交充值请求');
+
       const token = await createToken({
         userId: user.id,
         email: user.email,
         name: user.name,
       });
 
+      console.log('[充值] Token 已创建');
+
       let receiptFileKey = '';
       if (receiptImage) {
+        console.log('[充值] 开始上传支付凭证');
         const formData = new FormData();
         formData.append('file', receiptImage);
 
@@ -80,14 +85,22 @@ export default function PricingPage() {
           body: formData,
         });
 
+        console.log('[充值] 上传响应状态:', uploadResponse.status);
+
         if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('[充值] 上传失败:', errorText);
           throw new Error('上传支付凭证失败');
         }
 
         const uploadData = await uploadResponse.json();
         receiptFileKey = uploadData.fileKey;
+        console.log('[充值] 支付凭证已上传:', receiptFileKey);
+      } else {
+        console.log('[充值] 未上传支付凭证');
       }
 
+      console.log('[充值] 开始创建充值请求');
       const topupResponse = await fetch('/api/user/topup', {
         method: 'POST',
         headers: {
@@ -100,11 +113,16 @@ export default function PricingPage() {
         }),
       });
 
+      console.log('[充值] 充值请求响应状态:', topupResponse.status);
+
       if (!topupResponse.ok) {
-        throw new Error('充值请求提交失败');
+        const errorData = await topupResponse.json();
+        console.error('[充值] 充值请求失败:', errorData);
+        throw new Error(errorData.error || '充值请求提交失败');
       }
 
       const topupData = await topupResponse.json();
+      console.log('[充值] 充值请求成功:', topupData);
 
       toast.success('充值请求已提交，等待管理员审核', {
         description: '审核通过后积分将自动到账',
@@ -113,8 +131,8 @@ export default function PricingPage() {
       // 刷新订阅信息以显示最新状态
       await fetchSubscription();
     } catch (error) {
-      console.error('充值失败:', error);
-      toast.error('充值失败，请稍后重试');
+      console.error('[充值] 充值失败:', error);
+      toast.error(error instanceof Error ? error.message : '充值失败，请稍后重试');
     }
   };
 

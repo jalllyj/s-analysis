@@ -9,9 +9,12 @@ import { sendFeishuWebhookMessage } from '@/lib/feishu-api';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[充值] 开始处理充值请求');
+
     // 验证用户身份
     const token = parseAuthHeader(request);
     if (!token) {
+      console.error('[充值] 未提供 token');
       return NextResponse.json(
         { error: '未授权' },
         { status: 401 }
@@ -20,15 +23,21 @@ export async function POST(request: NextRequest) {
 
     const payload = await verifyToken(token);
     if (!payload) {
+      console.error('[充值] Token 验证失败');
       return NextResponse.json(
         { error: '无效的token' },
         { status: 401 }
       );
     }
 
+    console.log('[充值] 用户 ID:', payload.userId);
+
     const { tierId, receiptFileKey } = await request.json();
 
+    console.log('[充值] 请求参数:', { tierId, receiptFileKey });
+
     if (!tierId) {
+      console.error('[充值] 缺少 tierId');
       return NextResponse.json(
         { error: '请选择充值档位' },
         { status: 400 }
