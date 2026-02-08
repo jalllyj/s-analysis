@@ -90,7 +90,7 @@ export function createTopupApprovalMessage(data: {
           elements: [
             {
               tag: 'plain_text',
-              content: '💡 提示：首次使用需要在浏览器登录一次，之后可直接审核',
+              content: '💡 隧道密码: 115.190.93.94 (首次访问时需要输入)',
             },
           ],
         },
