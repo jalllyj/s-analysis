@@ -4,7 +4,8 @@ import { subscriptions, creditTransactions, paymentRecords, topupRequests, users
 import { eq } from 'drizzle-orm';
 import { verifyToken, parseAuthHeader } from '@/lib/auth';
 import { getTierById } from '@/lib/pricing';
-import { createTopupApprovalMessage, sendFeishuWebhookMessage } from '@/lib/feishu-api';
+import { createTopupApprovalMessage } from '@/lib/feishu';
+import { sendFeishuWebhookMessage } from '@/lib/feishu-api';
 
 export async function POST(request: NextRequest) {
   try {
