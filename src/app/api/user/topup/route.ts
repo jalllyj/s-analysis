@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         tierId: tier.id,
         tierName: tier.name,
         credits: tier.credits,
-        price: tier.price.toString(),
+        price: tier.price,
         receiptFileKey: receiptFileKey || null,
         status: 'pending',
         createdAt: new Date(),
@@ -96,12 +96,14 @@ export async function POST(request: NextRequest) {
         email: user[0].email,
         tierName: tier.name,
         credits: tier.credits,
-        price: tier.price.toString(),
+        price: tier.price,
         receiptUrl: receiptFileKey,
         createdAt: topupRequest.createdAt,
       });
 
-      await sendFeishuWebhookMessage(feishuMessage);
+      console.log('准备发送飞书消息:', JSON.stringify(feishuMessage, null, 2));
+      const sendResult = await sendFeishuWebhookMessage(feishuMessage);
+      console.log('飞书消息发送结果:', sendResult);
     } catch (feishuError) {
       console.error('发送飞书消息失败:', feishuError);
       // 不影响充值请求的创建，只是无法通知管理员
