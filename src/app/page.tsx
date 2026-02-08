@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileText, Loader2, TrendingUp, AlertCircle, CheckCircle2, Star, Award, Calendar, Clock, Zap } from 'lucide-react';
+import { Upload, FileText, Loader2, TrendingUp, AlertCircle, CheckCircle2, Star, Award, Calendar, Clock, Zap, FileCheck, DollarSign, User, Calendar as CalendarIcon, Shield } from 'lucide-react';
 
 interface CatalystEvent {
   timeRange: string;
@@ -12,6 +12,19 @@ interface CatalystEvent {
   type: string;
   certainty: number;
   description: string;
+}
+
+interface OrderItem {
+  projectName: string;
+  orderAmount: string;
+  customerName: string;
+  contractDate: string;
+  deliveryDate: string;
+  orderCertainty: number;
+  performanceContribution: string;
+  technicalBarrier: string;
+  priorityScore: number;
+  status: string;
 }
 
 interface StockAnalysis {
@@ -24,6 +37,7 @@ interface StockAnalysis {
   mediumTermCatalysts: string[];
   longTermLogic: string;
   businessInfo: string;
+  orderList: OrderItem[];
   orderCertainty: number;
   performanceContribution: string;
   technicalBarriers: string;
@@ -439,6 +453,97 @@ export default function StockAnalysisPage() {
                             </div>
                             <h4 className="font-semibold text-sm mb-1">{event.event}</h4>
                             <p className="text-sm text-muted-foreground">{event.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 订单列表 */}
+                  {stock.orderList.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        <FileCheck className="w-4 h-4 text-indigo-600" />
+                        订单列表（按优先级排序：确定性→业绩贡献→技术壁垒）
+                      </h3>
+                      <div className="space-y-3">
+                        {stock.orderList.map((order, i) => (
+                          <div
+                            key={i}
+                            className="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-lg border border-indigo-200 dark:border-indigo-800"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-1 text-xs font-semibold rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                                  优先级 #{i + 1}
+                                </span>
+                                <span className="px-2 py-1 text-xs font-medium rounded bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                                  {order.status}
+                                </span>
+                              </div>
+                              <div className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                                综合评分: {order.priorityScore.toFixed(1)}
+                              </div>
+                            </div>
+
+                            <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
+                              {order.projectName}
+                              {order.orderAmount && (
+                                <span className="text-sm font-semibold text-green-600 dark:text-green-400 flex items-center gap-1">
+                                  <DollarSign className="w-3 h-3" />
+                                  {order.orderAmount}
+                                </span>
+                              )}
+                            </h4>
+
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                              {order.customerName && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <User className="w-4 h-4 text-slate-500" />
+                                  <span className="text-muted-foreground">客户：</span>
+                                  <span className="font-medium">{order.customerName}</span>
+                                </div>
+                              )}
+                              {order.contractDate && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <CalendarIcon className="w-4 h-4 text-slate-500" />
+                                  <span className="text-muted-foreground">合同日期：</span>
+                                  <span className="font-medium">{order.contractDate}</span>
+                                </div>
+                              )}
+                              {order.deliveryDate && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Clock className="w-4 h-4 text-slate-500" />
+                                  <span className="text-muted-foreground">交付日期：</span>
+                                  <span className="font-medium">{order.deliveryDate}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="space-y-2 mb-3">
+                              {order.performanceContribution && (
+                                <div className="p-2 bg-green-50 dark:bg-green-950/20 rounded border border-green-200 dark:border-green-800">
+                                  <p className="text-xs font-semibold text-green-700 dark:text-green-300 mb-1">业绩贡献</p>
+                                  <p className="text-xs text-green-900 dark:text-green-100">{order.performanceContribution}</p>
+                                </div>
+                              )}
+                              {order.technicalBarrier && (
+                                <div className="p-2 bg-purple-50 dark:bg-purple-950/20 rounded border border-purple-200 dark:border-purple-800">
+                                  <p className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-1">技术壁垒</p>
+                                  <p className="text-xs text-purple-900 dark:text-purple-100">{order.technicalBarrier}</p>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1">
+                                  <Shield className="w-3 h-3 text-blue-600" />
+                                  <span className="text-muted-foreground">确定性:</span>
+                                  <span className="font-semibold">{order.orderCertainty}/10</span>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
