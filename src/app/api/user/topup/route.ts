@@ -4,6 +4,8 @@ import { subscriptions, creditTransactions, paymentRecords } from '@/lib/db/sche
 import { eq } from 'drizzle-orm';
 import { verifyToken, parseAuthHeader } from '@/lib/auth';
 import { getTierById } from '@/lib/pricing';
+import { buildPaymentUrl } from '@/lib/alipay/utils';
+import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { tierId, receiptFileKey } = await request.json();
+    const { tierId } = await request.json();
 
     if (!tierId) {
       return NextResponse.json(
@@ -56,58 +58,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: 这里应该集成支付网关（如Stripe）
-    // 目前为演示目的，直接完成充值
-    // 实际生产环境需要：
-    // 1. 创建支付订单
-    // 2. 调用支付网关
-    // 3. 等待支付成功回调
-    // 4. 再增加积分
+    // 生成订单号
+    const outTradeNo = `TOPUP_${payload.userId}_${crypto.randomUUID().replace(/-/g, '').substring(0, 16)}`;
 
-    // 计算充值后的积分余额
-    const newCreditsBalance = subscription.creditsBalance + tier.credits;
-    const newCreditsGranted = subscription.creditsGranted + tier.credits;
-
-    // 更新订阅信息
-    const [updatedSubscription] = await db
-      .update(subscriptions)
-      .set({
-        creditsBalance: newCreditsBalance,
-        creditsGranted: newCreditsGranted,
-        updatedAt: new Date(),
-      })
-      .where(eq(subscriptions.id, subscription.id))
-      .returning();
-
-    // 记录积分交易
+    // 记录积分交易（状态为pending）
     await db.insert(creditTransactions).values({
       userId: payload.userId,
       subscriptionId: subscription.id,
-      amount: tier.credits,
-      balance: newCreditsBalance,
+      transactionId: outTradeNo,
+      amount: tier.price,
+      balance: subscription.creditsBalance,
+      credits: tier.credits,
       type: 'grant',
       description: `充值${tier.name}（${tier.credits}积分）`,
+      status: 'pending',
+      paymentMethod: 'alipay',
     });
 
-    // 记录支付记录
-    await db.insert(paymentRecords).values({
-      userId: payload.userId,
-      subscriptionId: subscription.id,
-      amount: tier.price.toString(),
-      currency: tier.currency,
-      stripePaymentId: receiptFileKey || null,
-      status: 'completed',
-    });
+    // 构建支付宝支付参数
+    const bizContent = {
+      out_trade_no: outTradeNo,
+      total_amount: tier.price.toFixed(2),
+      subject: `股票分析工具 - ${tier.name}`,
+      body: `充值${tier.credits}积分`,
+      product_code: 'FAST_INSTANT_TRADE_PAY', // 快捷支付
+    };
+
+    // 生成支付宝支付URL
+    const paymentUrl = buildPaymentUrl('alipay.trade.page.pay', bizContent);
 
     return NextResponse.json({
-      message: '充值成功',
-      subscription: updatedSubscription,
-      creditsAdded: tier.credits,
+      message: '订单创建成功',
+      paymentUrl: paymentUrl,
+      outTradeNo: outTradeNo,
+      tier: tier,
     });
   } catch (error) {
-    console.error('充值失败:', error);
+    console.error('创建充值订单失败:', error);
     return NextResponse.json(
-      { error: '充值失败，请稍后重试' },
+      { error: '创建充值订单失败，请稍后重试' },
       { status: 500 }
     );
   }

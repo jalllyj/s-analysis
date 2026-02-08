@@ -7,14 +7,13 @@ import { Check, Zap, TrendingUp, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { CREDITS_TIERS, FREE_QUOTA } from '@/lib/pricing';
 import { createToken } from '@/lib/auth';
-import TopupModal from '@/components/TopupModal';
 import { toast } from 'sonner';
 
 export default function PricingPage() {
   const [user, setUser] = useState<any>(null);
   const [subscription, setSubscription] = useState<any>(null);
   const [selectedTier, setSelectedTier] = useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -51,42 +50,22 @@ export default function PricingPage() {
     }
   };
 
-  const handleTopupClick = (tier: any) => {
+  const handleTopupClick = async (tier: any) => {
     if (!user) {
       window.location.href = '/login';
       return;
     }
-    setSelectedTier(tier);
-    setIsModalOpen(true);
-  };
 
-  const handleTopupConfirm = async (receiptImage?: File) => {
-    if (!user || !selectedTier) return;
+    setSelectedTier(tier);
 
     try {
+      setIsLoading(true);
+
       const token = await createToken({
         userId: user.id,
         email: user.email,
         name: user.name,
       });
-
-      let receiptFileKey = '';
-      if (receiptImage) {
-        const formData = new FormData();
-        formData.append('file', receiptImage);
-
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('上传支付凭证失败');
-        }
-
-        const uploadData = await uploadResponse.json();
-        receiptFileKey = uploadData.fileKey;
-      }
 
       const topupResponse = await fetch('/api/user/topup', {
         method: 'POST',
@@ -95,25 +74,27 @@ export default function PricingPage() {
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          tierId: selectedTier.id,
-          receiptFileKey,
+          tierId: tier.id,
         }),
       });
 
       if (!topupResponse.ok) {
-        throw new Error('充值失败');
+        throw new Error('创建订单失败');
       }
 
       const topupData = await topupResponse.json();
 
-      toast.success(`充值成功！已获得 ${topupData.creditsAdded} 积分`);
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      // 跳转到支付宝支付页面
+      if (topupData.paymentUrl) {
+        window.location.href = topupData.paymentUrl;
+      } else {
+        throw new Error('支付链接无效');
+      }
     } catch (error) {
-      console.error('充值失败:', error);
-      toast.error('充值失败，请稍后重试');
+      console.error('创建订单失败:', error);
+      toast.error('创建订单失败，请稍后重试');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -275,8 +256,9 @@ export default function PricingPage() {
                         : 'bg-white text-black border border-gray-300 hover:bg-gray-50'
                     }`}
                     onClick={() => handleTopupClick(tier)}
+                    disabled={isLoading}
                   >
-                    {user ? '立即充值' : '登录充值'}
+                    {isLoading ? '创建订单中...' : user ? '立即充值' : '登录充值'}
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </CardContent>
@@ -354,19 +336,6 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
-
-      {/* Topup Modal */}
-      {selectedTier && (
-        <TopupModal
-          open={isModalOpen}
-          onOpenChange={setIsModalOpen}
-          tierId={selectedTier.id}
-          tierName={selectedTier.name}
-          credits={selectedTier.credits}
-          price={selectedTier.price}
-          onConfirm={handleTopupConfirm}
-        />
-      )}
     </div>
   );
 }
