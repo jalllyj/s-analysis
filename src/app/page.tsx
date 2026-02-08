@@ -298,8 +298,94 @@ export default function StockAnalysisPage() {
               </div>
             </div>
 
+            {/* 总排序列表 */}
+            <Card className="overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-slate-800 to-slate-900 text-white">
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  综合排序（按催化评分）
+                </CardTitle>
+                <CardDescription className="text-slate-300">
+                  按催化评分从高到低排序，点击卡片查看详细分析
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {results
+                    .sort((a, b) => b.catalystScore - a.catalystScore)
+                    .map((stock, index) => (
+                      <div
+                        key={index}
+                        className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                        onClick={() => {
+                          const element = document.getElementById(`stock-detail-${index}`);
+                          if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-sm">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold">{stock.name}</h3>
+                                <span className="text-sm text-muted-foreground">({stock.code})</span>
+                                {stock.isCoreStock && (
+                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-semibold rounded-full">
+                                    <Star className="w-3 h-3" />
+                                    核心个股
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                {stock.longTermLogic && (
+                                  <span className="text-amber-600 dark:text-amber-400">
+                                    大周期逻辑
+                                  </span>
+                                )}
+                                {stock.orderList.length > 0 && (
+                                  <span className="text-green-600 dark:text-green-400">
+                                    {stock.orderList.length} 个订单
+                                  </span>
+                                )}
+                                {stock.shortTermCatalysts.length > 0 && (
+                                  <span className="text-blue-600 dark:text-blue-400">
+                                    {stock.shortTermCatalysts.length} 个短期催化
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="text-xs text-muted-foreground mb-1">催化评分</div>
+                              <div
+                                className={`px-3 py-1 rounded-full text-sm font-semibold ${getScoreColor(
+                                  stock.catalystScore
+                                )}`}
+                              >
+                                {stock.catalystScore}/10
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs text-muted-foreground mb-1">订单确定性</div>
+                              <div className="text-sm font-semibold">
+                                {stock.orderCertainty}/10
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </CardContent>
+            </Card>
+
             {results.map((stock, index) => (
-              <Card key={index} className="overflow-hidden">
+              <Card key={index} id={`stock-detail-${index}`} className="overflow-hidden scroll-mt-4">
                 <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
