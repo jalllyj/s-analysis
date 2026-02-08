@@ -61,17 +61,43 @@ interface AnalysisResult {
 
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
+  let isControllerClosed = false;
+  
   const stream = new ReadableStream({
     async start(controller) {
+      // 安全发送数据的辅助函数
+      const safeEnqueue = (data: Uint8Array) => {
+        if (!isControllerClosed) {
+          try {
+            controller.enqueue(data);
+          } catch (e) {
+            console.error('Failed to enqueue data:', e);
+            isControllerClosed = true;
+          }
+        }
+      };
+
+      const safeClose = () => {
+        if (!isControllerClosed) {
+          try {
+            controller.close();
+            isControllerClosed = true;
+          } catch (e) {
+            console.error('Failed to close controller:', e);
+            isControllerClosed = true;
+          }
+        }
+      };
+
       try {
         const { fileKey } = await request.json();
         const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
 
         if (!fileKey) {
-          controller.enqueue(
+          safeEnqueue(
             encoder.encode(`data: ${JSON.stringify({ type: 'error', message: '未提供文件密钥' })}\n\n`)
           );
-          controller.close();
+          safeClose();
           return;
         }
 
@@ -94,10 +120,10 @@ export async function POST(request: NextRequest) {
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
         if (!jsonData || jsonData.length === 0) {
-          controller.enqueue(
+          safeEnqueue(
             encoder.encode(`data: ${JSON.stringify({ type: 'error', message: 'Excel文件为空或无法解析' })}\n\n`)
           );
-          controller.close();
+          safeClose();
           return;
         }
 
@@ -170,10 +196,10 @@ export async function POST(request: NextRequest) {
         }
 
         if (stocks.length === 0) {
-          controller.enqueue(
+          safeEnqueue(
             encoder.encode(`data: ${JSON.stringify({ type: 'error', message: '未找到有效的股票数据' })}\n\n`)
           );
-          controller.close();
+          safeClose();
           return;
         }
 
@@ -187,7 +213,7 @@ export async function POST(request: NextRequest) {
         // 分析每只股票
         for (const stock of stocks) {
           try {
-            controller.enqueue(
+            safeEnqueue(
               encoder.encode(`data: ${JSON.stringify({ type: 'progress', message: `正在分析 ${stock.name}(${stock.code})...` })}\n\n`)
             );
 
@@ -528,12 +554,12 @@ ${searchContext}
             analysisData.sources = allSources;
 
             // 发送结果
-            controller.enqueue(
+            safeEnqueue(
               encoder.encode(`data: ${JSON.stringify({ type: 'result', data: analysisData })}\n\n`)
             );
           } catch (stockError) {
             console.error(`分析股票 ${stock.name} 失败:`, stockError);
-            controller.enqueue(
+            safeEnqueue(
               encoder.encode(`data: ${JSON.stringify({
                 type: 'error',
                 message: `分析股票 ${stock.name} 失败: ${stockError instanceof Error ? stockError.message : '未知错误'}`
@@ -543,14 +569,14 @@ ${searchContext}
         }
 
         // 发送完成信号
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        safeEnqueue(encoder.encode('data: [DONE]\n\n'));
       } catch (error) {
         console.error('Analysis error:', error);
-        controller.enqueue(
+        safeEnqueue(
           encoder.encode(`data: ${JSON.stringify({ type: 'error', message: '分析过程中发生错误' })}\n\n`)
         );
       } finally {
-        controller.close();
+        safeClose();
       }
     },
   });
