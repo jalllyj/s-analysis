@@ -93,14 +93,78 @@ export async function POST(request: NextRequest) {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
+        if (!jsonData || jsonData.length === 0) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: 'Excel文件为空或无法解析' })}\n\n`)
+          );
+          controller.close();
+          return;
+        }
+
+        // 智能识别股票名称和代码列
+        function detectStockColumns(data: any[][]): { nameCol: number; codeCol: number; hasHeader: boolean } {
+          if (data.length < 2) return { nameCol: 0, codeCol: 1, hasHeader: false };
+
+          // 检测是否有标题行（第一行包含"股票"、"代码"、"名称"等关键词）
+          const firstRow = data[0].map((cell) => String(cell || '').toLowerCase());
+          const hasHeader = firstRow.some((cell) => 
+            cell.includes('股票') || cell.includes('名称') || cell.includes('代码') || cell.includes('name') || cell.includes('code')
+          );
+
+          const startRow = hasHeader ? 1 : 0;
+          const sampleRows = data.slice(startRow, Math.min(startRow + 5, data.length));
+
+          // 扫描每一列，识别股票名称列和股票代码列
+          let nameCol = -1;
+          let codeCol = -1;
+
+          for (let col = 0; col < 10; col++) { // 检查前10列
+            const values = sampleRows.map((row) => String(row[col] || '').trim()).filter(v => v);
+            
+            if (values.length === 0) continue;
+
+            // 检测是否是股票代码列
+            const codePattern = values.filter((v) => /^\d{6}$/.test(v) || /^\d{6}\.(SZ|SH|BJ)$/.test(v));
+            if (codePattern.length > values.length * 0.5) {
+              codeCol = col;
+              continue;
+            }
+
+            // 检测是否是股票名称列（包含中文，不是纯数字）
+            const namePattern = values.filter((v) => 
+              /[\u4e00-\u9fa5]/.test(v) && !/^\d+$/.test(v) && v.length >= 2 && v.length <= 8
+            );
+            if (namePattern.length > values.length * 0.5) {
+              nameCol = col;
+            }
+          }
+
+          // 如果没找到，使用默认值（第一列名称，第二列代码）
+          if (nameCol === -1) nameCol = 0;
+          if (codeCol === -1) codeCol = 1;
+
+          return { nameCol, codeCol, hasHeader };
+        }
+
+        const { nameCol, codeCol, hasHeader } = detectStockColumns(jsonData);
+
         // 提取股票信息
         const stocks: StockInfo[] = [];
-        for (let i = 1; i < jsonData.length; i++) {
+        const startRow = hasHeader ? 1 : 0;
+
+        for (let i = startRow; i < jsonData.length; i++) {
           const row = jsonData[i];
-          if (row[0] && row[1]) {
+          const name = row[nameCol] ? String(row[nameCol]).trim() : '';
+          const code = row[codeCol] ? String(row[codeCol]).trim() : '';
+
+          // 清理代码（去除.SZ、.SH等后缀）
+          const cleanCode = code.replace(/\.(SZ|SH|BJ)$/i, '');
+
+          // 验证数据有效性
+          if (name && cleanCode && cleanCode.length === 6 && /^\d+$/.test(cleanCode)) {
             stocks.push({
-              name: String(row[0]),
-              code: String(row[1]),
+              name: name,
+              code: cleanCode,
             });
           }
         }
