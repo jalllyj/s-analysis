@@ -19,7 +19,7 @@ export const FEISHU_CONFIG = {
   apiBaseUrl: 'https://open.feishu.cn/open-apis',
 };
 
-// 充值审核通知消息模板（简化版 - 直接提供后台链接）
+// 充值审核通知消息模板（使用快速审核链接）
 export function createTopupApprovalMessage(data: {
   requestId: number;
   email: string;
@@ -29,7 +29,8 @@ export function createTopupApprovalMessage(data: {
   receiptUrl?: string;
   createdAt: Date;
 }) {
-  const adminUrl = `${FEISHU_CONFIG.appUrl}/admin/topup`;
+  const quickApproveUrl = `${FEISHU_CONFIG.appUrl}/approve/${data.requestId}`;
+  const quickRejectUrl = `${FEISHU_CONFIG.appUrl}/reject/${data.requestId}`;
 
   return {
     msg_type: 'interactive',
@@ -46,7 +47,7 @@ export function createTopupApprovalMessage(data: {
           tag: 'div',
           text: {
             tag: 'lark_md',
-            content: `**用户邮箱**: ${data.email}\n**充值档位**: ${data.tierName}\n**积分数**: ${data.credits}\n**金额**: ¥${data.price}\n**请求时间**: ${data.createdAt.toLocaleString('zh-CN')}`,
+            content: `**用户邮箱**: ${data.email}\n**充值档位**: ${data.tierName}\n**积分数**: ${data.credits}\n**金额**: ¥${data.price}\n**请求时间**: ${data.createdAt.toLocaleString('zh-CN')}\n**请求ID**: ${data.requestId}`,
           },
         },
         {
@@ -59,10 +60,19 @@ export function createTopupApprovalMessage(data: {
               tag: 'button',
               text: {
                 tag: 'plain_text',
-                content: '📋 前往审核',
+                content: '✅ 通过',
               },
               type: 'primary',
-              url: adminUrl,
+              url: quickApproveUrl,
+            },
+            {
+              tag: 'button',
+              text: {
+                tag: 'plain_text',
+                content: '❌ 拒绝',
+              },
+              type: 'danger',
+              url: quickRejectUrl,
             },
           ],
         },
@@ -71,7 +81,7 @@ export function createTopupApprovalMessage(data: {
           elements: [
             {
               tag: 'plain_text',
-              content: '💡 点击按钮进入后台管理页面进行审核',
+              content: '💡 点击按钮即可完成审核，无需登录，全程在浏览器中完成',
             },
           ],
         },
