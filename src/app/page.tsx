@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileText, Loader2, TrendingUp, AlertCircle, CheckCircle2, Star, Award, Calendar, Clock, Zap, FileCheck, DollarSign, User, Calendar as CalendarIcon, Shield, Flame } from 'lucide-react';
+import { Upload, FileText, Loader2, TrendingUp, AlertCircle, CheckCircle2, Star, Award, Calendar, Clock, Zap, FileCheck, DollarSign, User, Calendar as CalendarIcon, Shield, Flame, LogOut, CreditCard } from 'lucide-react';
+import Link from 'next/link';
+import { createToken } from '@/lib/auth';
 
 interface CatalystEvent {
   timeRange: string;
@@ -64,7 +66,49 @@ export default function StockAnalysisPage() {
   const [error, setError] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
   const [progressMessage, setProgressMessage] = useState<string>('');
+  const [user, setUser] = useState<any>(null);
+  const [subscription, setSubscription] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 检查用户身份
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+      fetchSubscription();
+    } else {
+      // 未登录，跳转到登录页
+      window.location.href = '/login';
+    }
+  }, []);
+
+  // 获取订阅信息
+  const fetchSubscription = async () => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (!userData) return;
+
+      const user = JSON.parse(userData);
+      const token = await createToken({ 
+        userId: user.id, 
+        email: user.email, 
+        name: user.name 
+      });
+
+      const response = await fetch('/api/user/subscription', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSubscription(data);
+      }
+    } catch (error) {
+      console.error('获取订阅信息失败:', error);
+    }
+  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -136,11 +180,19 @@ export default function StockAnalysisPage() {
       
       setProgressMessage('文件上传成功，开始分析...');
 
+      // 获取认证token
+      const token = await createToken({ 
+        userId: user.id, 
+        email: user.email, 
+        name: user.name 
+      });
+
       // 2. 开始分析
       const analyzeResponse = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ fileKey }),
       });
@@ -254,18 +306,57 @@ export default function StockAnalysisPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-3 flex items-center justify-center gap-3">
-            <TrendingUp className="w-8 h-8 text-blue-600" />
-            股票智能分析工具
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+      {/* Navigation */}
+      <div className="bg-white border-b sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+            <TrendingUp className="w-6 h-6" />
+            股票智能分析
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            上传包含个股信息的 Excel 文件，AI 将自动分析核心个股识别、产品价格催化、炒作预期、订单确定性、业绩贡献、技术壁垒及热点关联性
-          </p>
+          <div className="flex items-center gap-4">
+            {subscription?.usage && (
+              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                <Flame className="w-4 h-4 text-orange-500" />
+                <span className="text-sm">
+                  {subscription.usage.isUnlimited ? '无限' : `剩余 ${subscription.usage.remaining} 次`}
+                </span>
+              </div>
+            )}
+            <Link href="/pricing">
+              <Button variant="outline" size="sm">
+                <CreditCard className="w-4 h-4 mr-2" />
+                升级套餐
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+              }}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              退出
+            </Button>
+          </div>
         </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="p-4 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold mb-3 flex items-center justify-center gap-3">
+              <TrendingUp className="w-8 h-8 text-blue-600" />
+              股票智能分析工具
+            </h1>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              上传包含个股信息的 Excel 文件，AI 将自动分析核心个股识别、产品价格催化、炒作预期、订单确定性、业绩贡献、技术壁垒及热点关联性
+            </p>
+          </div>
 
         {/* Upload Section */}
         <Card className="mb-8">
@@ -825,6 +916,7 @@ export default function StockAnalysisPage() {
             </CardContent>
           </Card>
         )}
+        </div>
       </div>
     </div>
   );

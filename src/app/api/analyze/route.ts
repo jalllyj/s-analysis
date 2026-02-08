@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { S3Storage, SearchClient, LLMClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 import * as XLSX from 'xlsx';
+import { verifyToken, parseAuthHeader } from '@/lib/auth';
+import { checkUserQuota, recordUsage } from '@/lib/quota';
 
 interface StockInfo {
   name: string;
@@ -62,10 +64,28 @@ interface AnalysisResult {
 export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
   let isControllerClosed = false;
+
+  // 验证用户身份
+  const token = parseAuthHeader(request);
+  if (!token) {
+    return new Response(
+      JSON.stringify({ error: '未授权访问，请先登录' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const payload = await verifyToken(token);
+  if (!payload) {
+    return new Response(
+      JSON.stringify({ error: '无效的访问令牌' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  let subscriptionId: number | undefined;
   
   const stream = new ReadableStream({
     async start(controller) {
-      // 安全发送数据的辅助函数
       const safeEnqueue = (data: Uint8Array) => {
         if (!isControllerClosed) {
           try {
@@ -93,7 +113,24 @@ export async function POST(request: NextRequest) {
         const { fileKey } = await request.json();
         const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
 
+        console.log('开始分析请求，fileKey:', fileKey, 'userId:', payload.userId);
+
+        // 检查用户配额
+        const quotaCheck = await checkUserQuota(payload.userId);
+        if (!quotaCheck.allowed) {
+          console.error('配额不足:', quotaCheck.message);
+          safeEnqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'error', message: quotaCheck.message })}\n\n`)
+          );
+          safeClose();
+          return;
+        }
+
+        subscriptionId = quotaCheck.subscriptionId;
+        console.log('配额检查通过:', quotaCheck.message);
+
         if (!fileKey) {
+          console.error('未提供fileKey');
           safeEnqueue(
             encoder.encode(`data: ${JSON.stringify({ type: 'error', message: '未提供文件密钥' })}\n\n`)
           );
@@ -575,6 +612,13 @@ ${searchContext}
         }
 
         console.log('所有股票分析完成');
+        
+        // 记录使用量
+        if (subscriptionId && stocks.length > 0) {
+          console.log(`记录使用量：${stocks.length} 只股票`);
+          await recordUsage(payload.userId, subscriptionId, stocks.length);
+        }
+        
         // 发送完成信号
         safeEnqueue(encoder.encode('data: [DONE]\n\n'));
       } catch (error) {
