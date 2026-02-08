@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
       message: '订单创建成功',
       paymentUrl: paymentUrl,
       outTradeNo: outTradeNo,
+      orderConfirmUrl: `/order-confirm/${outTradeNo}`,
       tier: tier,
     });
   } catch (error) {

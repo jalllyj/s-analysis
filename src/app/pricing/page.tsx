@@ -21,6 +21,16 @@ export default function PricingPage() {
       setUser(JSON.parse(userData));
       fetchSubscription();
     }
+
+    // 检查URL参数，如果有tierId，自动创建订单
+    const urlParams = new URLSearchParams(window.location.search);
+    const tierId = urlParams.get('tierId');
+    if (tierId) {
+      const tier = CREDITS_TIERS.find((t: any) => t.id === tierId);
+      if (tier) {
+        handleTopupClick(tier);
+      }
+    }
   }, []);
 
   const fetchSubscription = async () => {
@@ -90,11 +100,11 @@ export default function PricingPage() {
 
       const topupData = await topupResponse.json();
 
-      // 跳转到支付宝支付页面
-      if (topupData.paymentUrl) {
-        window.location.href = topupData.paymentUrl;
+      // 跳转到订单确认页面
+      if (topupData.orderConfirmUrl) {
+        window.location.href = topupData.orderConfirmUrl;
       } else {
-        throw new Error('支付链接无效');
+        throw new Error('订单确认链接无效');
       }
     } catch (error) {
       console.error('创建订单失败:', error);
