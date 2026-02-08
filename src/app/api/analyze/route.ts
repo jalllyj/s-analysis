@@ -20,6 +20,8 @@ interface AnalysisResult {
   热点关联: string;
   sources: string[];
   catalystScore: number;
+  isCoreStock: boolean;
+  marketPosition: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
-        // 提取股票信息（假设第一列是名称，第二列是代码）
+        // 提取股票信息
         const stocks: StockInfo[] = [];
         for (let i = 1; i < jsonData.length; i++) {
           const row = jsonData[i];
@@ -86,80 +88,147 @@ export async function POST(request: NextRequest) {
         // 分析每只股票
         for (const stock of stocks) {
           try {
-            // 搜索最新消息
-            const searchQuery = `${stock.name} ${stock.code} 最新消息 2024 2025 财报 业务 订单 催化`;
-            const searchResults = await searchClient.advancedSearch(searchQuery, {
-              count: 10,
-              timeRange: '1m',
-              needSummary: true,
-            });
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ type: 'progress', message: `正在分析 ${stock.name}(${stock.code})...` })}\n\n`)
+            );
 
-            // 搜索热点题材
-            const hotTopicQuery = `${stock.name} ${stock.code} 热点题材 炒作预期 概念板块 A股 2024 2025`;
-            const hotTopicResults = await searchClient.advancedSearch(hotTopicQuery, {
-              count: 5,
-              timeRange: '2w',
-              needSummary: true,
-            });
+            // 多维度搜索策略
+            const searchQueries = [
+              {
+                name: '公司基本信息',
+                query: `${stock.name} ${stock.code} 主营业务 核心产品 产能 市场份额 行业地位`,
+                count: 8,
+                timeRange: '3m',
+              },
+              {
+                name: '价格和业绩',
+                query: `${stock.name} ${stock.code} 产品价格 涨价 价格变动 财报 业绩 2024 2025`,
+                count: 8,
+                timeRange: '1m',
+              },
+              {
+                name: '订单和客户',
+                query: `${stock.name} ${stock.code} 订单 签约 客户 重大项目 合同 中标`,
+                count: 6,
+                timeRange: '1m',
+              },
+              {
+                name: '政策和行业',
+                query: `${stock.name} ${stock.code} 政策 行业政策 产业政策 支持政策 2024 2025`,
+                count: 6,
+                timeRange: '2m',
+              },
+              {
+                name: '热点题材',
+                query: `${stock.name} ${stock.code} 热点题材 概念板块 炒作预期 市场热点 A股 2025`,
+                count: 8,
+                timeRange: '2w',
+              },
+              {
+                name: '竞品和供需',
+                query: `${stock.name} ${stock.code} 供需 产能利用率 行业供需 竞争对手 市场格局`,
+                count: 6,
+                timeRange: '1m',
+              },
+            ];
 
-            // 收集信息源
-            const sources: string[] = [];
-            searchResults.web_items?.forEach(item => {
-              if (item.url) sources.push(item.url);
-            });
-            hotTopicResults.web_items?.forEach(item => {
-              if (item.url && !sources.includes(item.url)) sources.push(item.url);
-            });
+            const allSearchResults: any[] = [];
+            const allSources: string[] = [];
 
-            // 准备分析上下文
-            const searchContext = searchResults.web_items?.map(item =>
-              `标题: ${item.title}\n摘要: ${item.snippet}\n发布时间: ${item.publish_time || '未知'}`
-            ).join('\n\n') || '未找到相关消息';
+            // 执行多维度搜索
+            for (const search of searchQueries) {
+              try {
+                const results = await searchClient.advancedSearch(search.query, {
+                  count: search.count,
+                  timeRange: search.timeRange,
+                  needSummary: true,
+                });
 
-            const hotTopicContext = hotTopicResults.web_items?.map(item =>
-              `标题: ${item.title}\n摘要: ${item.snippet}`
-            ).join('\n\n') || '未找到热点题材信息';
+                if (results.web_items && results.web_items.length > 0) {
+                  allSearchResults.push({
+                    category: search.name,
+                    items: results.web_items,
+                  });
 
-            const systemPrompt = `你是一位专业的股票分析师。请根据搜索到的信息，对股票进行深度分析。
+                  results.web_items.forEach((item: any) => {
+                    if (item.url && !allSources.includes(item.url)) {
+                      allSources.push(item.url);
+                    }
+                  });
+                }
+              } catch (searchError) {
+                console.error(`搜索 ${search.name} 失败:`, searchError);
+              }
+            }
 
-请严格按照以下 JSON 格式返回分析结果，不要添加任何其他文字：
+            // 整合所有搜索结果
+            const searchContext = allSearchResults.map(category => {
+              const items = category.items.map((item: any) =>
+                `[${item.publish_time || '未知'}] ${item.title}\n摘要: ${item.snippet}`
+              ).join('\n\n');
+              return `【${category.category}】\n${items}`;
+            }).join('\n\n---\n\n');
+
+            // 改进的系统提示
+            const systemPrompt = `你是一位资深A股市场分析师，擅长识别核心个股和催化因素。
+
+核心个股判断标准：
+1. 稀缺性：在产业链中具有独特地位或稀缺资源
+2. 垄断性：在细分领域具有较高市场份额或技术壁垒
+3. 竞争力：产品价格对业绩影响大，定价能力强
+4. 成长性：订单确定，产能利用率高，业绩增长预期明确
+
+催化评分标准（1-10分）：
+- 9-10分（极高催化）：核心个股+产品涨价/重大订单+行业景气度高
+- 7-8分（高催化）：核心个股+业绩超预期/政策利好+订单确定
+- 5-6分（中等催化）：一般个股+概念炒作+政策支持
+- 3-4分（低催化）：一般个股+市场热点+不确定性
+- 1-2分（无催化）：无明确催化因素
+
+请严格按照以下 JSON 格式返回分析结果：
 {
-  "analysis": "综合分析摘要",
-  "catalysts": ["催化因素1", "催化因素2"],
-  "expectedNews": ["可炒作预期1", "可炒作预期2"],
-  "businessInfo": "业务信息描述",
+  "analysis": "综合分析摘要（300字以内）",
+  "catalysts": ["催化因素1（核心因素优先）", "催化因素2"],
+  "expectedNews": ["可炒作预期1（具体时间点和事件）", "可炒作预期2"],
+  "businessInfo": "业务信息：主营业务、核心产品、产能、市场份额、行业地位",
   "orderCertainty": 订单确定性评分(1-10整数),
-  "performanceContribution": "业绩贡献分析",
-  "technicalBarriers": "技术壁垒分析",
-  "热点关联": "热点事件与题材关联性分析",
+  "performanceContribution": "业绩贡献：分析当前业务对业绩的潜在贡献，量化影响",
+  "technicalBarriers": "技术壁垒：核心技术、专利、产能壁垒、成本优势、客户壁垒",
+  "热点关联": "热点关联：与当前A股热点题材的关联性分析",
+  "isCoreStock": true/false (是否为核心个股),
+  "marketPosition": "市场地位：在行业中的位置和竞争力",
   "catalystScore": 催化概率评分(1-10整数)
 }
 
-评分标准：
-- 订单确定性：1-3分(低)，4-6分(中)，7-8分(高)，9-10分(极高)
-- 催化概率：1-3分(无催化)，4-5分(低催化)，6-7分(中等催化)，8-10分(高催化)
-
 分析要求：
-1. 消息催化：提取最近的利好消息和潜在催化因素
-2. 可炒作预期：分析市场可能炒作的预期和题材
-3. 业务信息：分析公司的主营业务和核心竞争力
-4. 订单确定性：评估订单的确定性和可持续性
-5. 业绩贡献：分析业务对业绩的潜在贡献
-6. 技术壁垒：评估公司的技术护城河和竞争优势
-7. 热点关联：分析公司与当前热点事件的关联性
-8. 催化概率：综合评估催化发生的概率`;
+1. **核心个股识别**：根据稀缺性、垄断性、竞争力、成长性判断是否为核心个股
+2. **产品价格敏感度**：重点关注产品价格变动，如PVC涨价对新疆天业的影响
+3. **订单确定性**：分析订单的可执行性、客户质量、合同金额和交付周期
+4. **业绩贡献量化**：尽可能量化分析对业绩的影响（如"预计提升毛利率X%"）
+5. **技术壁垒评估**：分析核心竞争优势（如专利、产能、成本、渠道等）
+6. **热点关联性**：分析与当前市场热点（如AI、新能源、新材料等）的关联
+7. **信息源标注**：所有分析必须基于搜索到的信息，不得编造
+8. **催化排序**：催化因素按重要性和确定性排序，核心因素放首位
+
+特别提示：
+- 产品涨价是核心催化，要量化涨价对业绩的影响
+- 核心个股的催化概率应给予更高评分
+- 订单确定性要考虑行业周期和客户需求稳定性`;
 
             const userPrompt = `股票信息：
 名称：${stock.name}
 代码：${stock.code}
 
-搜索到的最新消息：
+【多维度搜索结果】
 ${searchContext}
 
-搜索到的热点题材信息：
-${hotTopicContext}
-
-请根据以上信息，对该股票进行全面分析。`;
+请基于以上信息，进行深度分析，特别关注：
+1. 是否为核心个股（稀缺性、垄断性、竞争力、成长性）
+2. 产品价格变动对业绩的影响（如PVC涨价、硅料降价等）
+3. 订单确定性和产能利用率
+4. 行业供需格局和竞争态势
+5. 与当前热点题材的关联性
+6. 综合评估催化概率和确定性`;
 
             const messages = [
               { role: 'system' as const, content: systemPrompt },
@@ -174,7 +243,6 @@ ${hotTopicContext}
             // 解析 JSON 响应
             let analysisData: AnalysisResult;
             try {
-              // 尝试提取 JSON
               const jsonMatch = response.content.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
                 analysisData = JSON.parse(jsonMatch[0]);
@@ -182,11 +250,10 @@ ${hotTopicContext}
                 throw new Error('未找到有效的 JSON 格式');
               }
             } catch (e) {
-              // 如果解析失败，创建默认结构
               analysisData = {
                 name: stock.name,
                 code: stock.code,
-                analysis: response.content,
+                analysis: response.content.substring(0, 500),
                 catalysts: ['数据解析失败，请查看完整分析'],
                 expectedNews: [],
                 businessInfo: response.content,
@@ -194,15 +261,17 @@ ${hotTopicContext}
                 performanceContribution: '数据解析失败',
                 technicalBarriers: '数据解析失败',
                 热点关联: '数据解析失败',
-                sources,
+                sources: allSources,
                 catalystScore: 5,
+                isCoreStock: false,
+                marketPosition: '数据解析失败',
               };
             }
 
-            // 添加股票信息
+            // 补充股票信息
             analysisData.name = stock.name;
             analysisData.code = stock.code;
-            analysisData.sources = sources;
+            analysisData.sources = allSources;
 
             // 发送结果
             controller.enqueue(

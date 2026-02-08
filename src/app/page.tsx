@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, FileText, Loader2, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, FileText, Loader2, TrendingUp, AlertCircle, CheckCircle2, Star, Award } from 'lucide-react';
 
 interface StockAnalysis {
   name: string;
@@ -15,9 +15,11 @@ interface StockAnalysis {
   orderCertainty: number;
   performanceContribution: string;
   technicalBarriers: string;
- 热点关联: string;
+  热点关联: string;
   sources: string[];
   catalystScore: number;
+  isCoreStock: boolean;
+  marketPosition: string;
 }
 
 export default function StockAnalysisPage() {
@@ -26,6 +28,7 @@ export default function StockAnalysisPage() {
   const [results, setResults] = useState<StockAnalysis[]>([]);
   const [error, setError] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
+  const [progressMessage, setProgressMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,6 +129,7 @@ export default function StockAnalysisPage() {
             const data = line.slice(6);
             if (data === '[DONE]') {
               setAnalyzing(false);
+              setProgressMessage('');
               return;
             }
 
@@ -133,9 +137,13 @@ export default function StockAnalysisPage() {
               const parsed = JSON.parse(data);
               if (parsed.type === 'result') {
                 setResults(prev => [...prev, parsed.data]);
+                setProgressMessage('');
+              } else if (parsed.type === 'progress') {
+                setProgressMessage(parsed.message);
               } else if (parsed.type === 'error') {
                 setError(parsed.message);
                 setAnalyzing(false);
+                setProgressMessage('');
               }
             } catch (e) {
               console.error('解析响应失败:', e);
@@ -173,7 +181,7 @@ export default function StockAnalysisPage() {
             股票智能分析工具
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            上传包含个股信息的 Excel 文件，AI 将自动分析最近消息催化、炒作预期、订单确定性、业绩贡献、技术壁垒及热点关联性
+            上传包含个股信息的 Excel 文件，AI 将自动分析核心个股识别、产品价格催化、炒作预期、订单确定性、业绩贡献、技术壁垒及热点关联性
           </p>
         </div>
 
@@ -268,13 +276,19 @@ export default function StockAnalysisPage() {
               <Card key={index} className="overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex items-center gap-3">
                       <CardTitle className="text-xl flex items-center gap-2">
                         {stock.name}
                         <span className="text-sm font-normal text-muted-foreground">
                           ({stock.code})
                         </span>
                       </CardTitle>
+                      {stock.isCoreStock && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-semibold rounded-full">
+                          <Star className="w-3 h-3" />
+                          核心个股
+                        </div>
+                      )}
                     </div>
                     <div
                       className={`px-3 py-1 rounded-full text-sm font-semibold ${getScoreColor(
@@ -286,6 +300,28 @@ export default function StockAnalysisPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-4">
+                  {/* 综合分析摘要 */}
+                  <div>
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-blue-600" />
+                      综合分析摘要
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{stock.analysis}</p>
+                  </div>
+
+                  {/* 市场地位 */}
+                  {stock.marketPosition && (
+                    <div>
+                      <h3 className="font-semibold mb-2 flex items-center gap-2">
+                        <Award className="w-4 h-4 text-purple-600" />
+                        市场地位
+                      </h3>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line">
+                        {stock.marketPosition}
+                      </p>
+                    </div>
+                  )}
+
                   {/* 消息催化 */}
                   <div>
                     <h3 className="font-semibold mb-2 flex items-center gap-2">
@@ -390,7 +426,9 @@ export default function StockAnalysisPage() {
             <CardContent className="py-12">
               <div className="flex flex-col items-center gap-4">
                 <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
-                <p className="text-muted-foreground">正在分析股票数据，请稍候...</p>
+                <p className="text-muted-foreground">
+                  {progressMessage || '正在分析股票数据，请稍候...'}
+                </p>
               </div>
             </CardContent>
           </Card>
