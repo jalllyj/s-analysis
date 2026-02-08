@@ -91,50 +91,17 @@ export async function POST(request: NextRequest) {
         const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null }) as any[][];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
-        // 提取股票信息（智能检测标题行）
+        // 提取股票信息
         const stocks: StockInfo[] = [];
-        let startIndex = 0;
-
-        // 检测第一行是否是标题行
-        if (jsonData.length > 0) {
-          const firstRow = jsonData[0];
-          const isHeaderRow =
-            firstRow.length >= 2 &&
-            (
-              typeof firstRow[0] === 'string' &&
-              (firstRow[0].includes('名称') || firstRow[0].includes('股票') || firstRow[0].includes('Name'))
-            );
-          startIndex = isHeaderRow ? 1 : 0;
-        }
-
-        for (let i = startIndex; i < jsonData.length; i++) {
+        for (let i = 1; i < jsonData.length; i++) {
           const row = jsonData[i];
-
-          // 确保有足够的数据列
-          if (row.length < 2) continue;
-
-          // 获取第一列和第二列的数据
-          const name = row[0];
-          const code = row[1];
-
-          // 验证数据有效性
-          if (name && code) {
-            const nameStr = String(name).trim();
-            const codeStr = String(code).trim();
-
-            // 排除空行和明显不是股票名称的行
-            if (nameStr && codeStr &&
-                !nameStr.includes('名称') &&
-                !nameStr.includes('股票') &&
-                !nameStr.includes('合计') &&
-                !nameStr.includes('总计')) {
-              stocks.push({
-                name: nameStr,
-                code: codeStr,
-              });
-            }
+          if (row[0] && row[1]) {
+            stocks.push({
+              name: String(row[0]),
+              code: String(row[1]),
+            });
           }
         }
 
@@ -145,14 +112,6 @@ export async function POST(request: NextRequest) {
           controller.close();
           return;
         }
-
-        // 显示解析的股票列表（前5只和总数）
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify({
-            type: 'progress',
-            message: `📊 成功解析 ${stocks.length} 只股票，前3只: ${stocks.slice(0, 3).map(s => `${s.name}(${s.code})`).join(', ')}`
-          })}\n\n`)
-        );
 
         // 初始化搜索和 LLM 客户端
         const searchConfig = new Config();
