@@ -26,7 +26,7 @@ export function createTopupApprovalMessage(data: {
   credits: number;
   price: string;
   receiptUrl?: string | null;
-  createdAt: Date;
+  createdAt: Date | null;
 }) {
   let content = `**用户邮箱**: ${data.email}\n`;
   content += `**充值档位**: ${data.tierName}\n`;
@@ -35,7 +35,7 @@ export function createTopupApprovalMessage(data: {
   if (data.receiptUrl) {
     content += `**支付凭证**: 已上传\n`;
   }
-  content += `**提交时间**: ${data.createdAt.toLocaleString('zh-CN')}\n`;
+  content += `**提交时间**: ${data.createdAt?.toLocaleString('zh-CN') || '未知'}\n`;
   content += `**请求ID**: ${data.requestId}\n`;
 
   return {
