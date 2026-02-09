@@ -14,13 +14,13 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 初始化对象存储
+    // 提取转发头用于认证
+    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
+
+    // 初始化对象存储（使用 SDK 自动配置）
     const storage = new S3Storage({
-      endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL || 'https://integration.coze.cn/coze-coding-s3proxy/v1',
-      accessKey: process.env.COZE_BUCKET_ACCESS_KEY || '',
-      secretKey: process.env.COZE_BUCKET_SECRET_KEY || '',
-      bucketName: process.env.COZE_BUCKET_NAME || 'bucket_1770551849947',
-      region: 'cn-beijing',
+      endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
+      bucketName: process.env.COZE_BUCKET_NAME,
     });
 
     // 上传文件
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       fileContent: buffer,
       fileName: file.name,
       contentType: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      customHeaders,
     });
 
     return NextResponse.json({ fileKey });
