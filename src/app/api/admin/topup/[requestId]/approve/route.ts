@@ -7,7 +7,7 @@ import { verifyToken, parseAuthHeader } from '@/lib/auth';
 // 通过充值请求
 export async function POST(
   request: NextRequest,
-  { params }: { params: { requestId: string } }
+  { params }: { params: Promise<{ requestId: string }> }
 ) {
   try {
     // 验证管理员身份（可选：可以增加管理员权限检查）
@@ -27,14 +27,15 @@ export async function POST(
       );
     }
 
-    const requestId = parseInt(params.requestId);
+    const { requestId } = await params;
+    const requestIdNum = parseInt(requestId);
     const { remark } = await request.json();
 
     // 获取充值请求
     const [topupRequest] = await db
       .select()
       .from(topupRequests)
-      .where(eq(topupRequests.id, requestId))
+      .where(eq(topupRequests.id, requestIdNum))
       .limit(1);
 
     if (!topupRequest) {
@@ -98,11 +99,11 @@ export async function POST(
         adminRemark: remark || null,
         updatedAt: new Date(),
       })
-      .where(eq(topupRequests.id, requestId));
+      .where(eq(topupRequests.id, requestIdNum));
 
     return NextResponse.json({
       message: '充值审核通过',
-      requestId: requestId,
+      requestId: requestIdNum,
       credits: topupRequest.credits,
     });
   } catch (error) {
