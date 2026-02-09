@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { S3Storage, HeaderUtils } from 'coze-coding-dev-sdk';
+import { S3Storage } from 'coze-coding-dev-sdk';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,10 +14,7 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // 提取转发头用于认证
-    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
-
-    // 初始化对象存储（使用 SDK 自动配置）
+    // 初始化对象存储
     const storage = new S3Storage({
       endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
       bucketName: process.env.COZE_BUCKET_NAME,
@@ -28,7 +25,6 @@ export async function POST(request: NextRequest) {
       fileContent: buffer,
       fileName: file.name,
       contentType: file.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      customHeaders,
     });
 
     return NextResponse.json({ fileKey });
