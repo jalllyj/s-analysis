@@ -16,10 +16,10 @@ export async function POST(request: NextRequest) {
 
     // 初始化对象存储
     const storage = new S3Storage({
-      endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL,
-      accessKey: '',
-      secretKey: '',
-      bucketName: process.env.COZE_BUCKET_NAME,
+      endpointUrl: process.env.COZE_BUCKET_ENDPOINT_URL || 'https://integration.coze.cn/coze-coding-s3proxy/v1',
+      accessKey: process.env.COZE_BUCKET_ACCESS_KEY || '',
+      secretKey: process.env.COZE_BUCKET_SECRET_KEY || '',
+      bucketName: process.env.COZE_BUCKET_NAME || 'bucket_1770551849947',
       region: 'cn-beijing',
     });
 
