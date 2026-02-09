@@ -18,6 +18,63 @@ export const FEISHU_CONFIG = {
 
 
 
+// 充值审核消息模板（发送给管理员）
+export function createTopupApprovalMessage(data: {
+  requestId: number;
+  email: string;
+  tierName: string;
+  credits: number;
+  price: string;
+  receiptUrl?: string | null;
+  createdAt: Date;
+}) {
+  let content = `**用户邮箱**: ${data.email}\n`;
+  content += `**充值档位**: ${data.tierName}\n`;
+  content += `**充值积分数**: ${data.credits}\n`;
+  content += `**充值金额**: ¥${data.price}\n`;
+  if (data.receiptUrl) {
+    content += `**支付凭证**: 已上传\n`;
+  }
+  content += `**提交时间**: ${data.createdAt.toLocaleString('zh-CN')}\n`;
+  content += `**请求ID**: ${data.requestId}\n`;
+
+  return {
+    msg_type: 'interactive',
+    card: {
+      header: {
+        title: {
+          tag: 'plain_text',
+          content: '📢 新的充值审核请求',
+        },
+        template: 'blue',
+      },
+      elements: [
+        {
+          tag: 'div',
+          text: {
+            tag: 'lark_md',
+            content: content,
+          },
+        },
+        {
+          tag: 'action',
+          actions: [
+            {
+              tag: 'button',
+              text: {
+                tag: 'plain_text',
+                content: '查看详情',
+              },
+              type: 'primary',
+              url: `${process.env.NEXT_PUBLIC_APP_URL}/admin/topup-requests`,
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
 // 审核结果通知消息模板
 export function createTopupResultMessage(data: {
   requestId: number;
