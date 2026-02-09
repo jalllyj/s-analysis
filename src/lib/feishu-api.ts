@@ -1,4 +1,4 @@
-import { FEISHU_CONFIG } from './feishu.ts';
+import { FEISHU_CONFIG } from './feishu';
 
 // 获取飞书应用访问令牌
 export async function getFeishuAccessToken(): Promise<string | null> {
